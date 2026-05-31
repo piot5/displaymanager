@@ -1,0 +1,42 @@
+[package]
+name = "df_ddc"
+version = "0.1.0"
+edition = "2021"
+authors = ["piot5"]
+description = "DDC/CI monitor control backend."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/df_displmgr"
+homepage = "https://piot5.github.io/displayflow_cli/"
+readme = "README.md"
+keywords = ["display", "monitor", "ddc", "windows", "linux"]
+categories = ["os::windows-apis", "os::linux-apis", "hardware-support"]
+
+[lib]
+name = "df_ddc"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ddc_mgr"
+path = "src/bin/ddc_mgr.rs"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+snafu = { workspace = true }
+async-trait = { workspace = true }
+log = { workspace = true }
+clap = { version = "4.0", features = ["derive"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+tempfile = { workspace = true }
+criterion = { workspace = true, features = ["async_tokio"] }
+
+[[bench]]
+name = "ddc_operations"
+harness = false

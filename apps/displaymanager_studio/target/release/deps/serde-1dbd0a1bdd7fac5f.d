@@ -1,0 +1,14 @@
+C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\deps\serde-1dbd0a1bdd7fac5f.d: C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\build\serde-df30ea87ceb0451a\out/private.rs
+
+C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\deps\libserde-1dbd0a1bdd7fac5f.rlib: C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\build\serde-df30ea87ceb0451a\out/private.rs
+
+C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\deps\libserde-1dbd0a1bdd7fac5f.rmeta: C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\build\serde-df30ea87ceb0451a\out/private.rs
+
+C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\piotv\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Software\DisplayFlow\Build_DisplayflowStudio\target\release\build\serde-df30ea87ceb0451a\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Software\\DisplayFlow\\Build_DisplayflowStudio\\target\\release\\build\\serde-df30ea87ceb0451a\\out

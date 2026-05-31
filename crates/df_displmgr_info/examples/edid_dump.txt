@@ -1,0 +1,125 @@
+Hardware Diagnostic Storage Stream
+
+Discovered 3 display targets:
+
+======================================================
+ MONITOR #1 - BenQ GL2450H
+======================================================
+  [OS LAYER]
+  ├─ Target ID:        4354
+  ├─ GDI Name:         \\.\DISPLAY2
+  ├─ Active:           Yes
+  ├─ Output Tech:      HDMI
+  └─ Device Path:      \\?\DISPLAY#BNQ78A7#5&290c49f7&0&UID4354#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+
+  [TOPOLOGY]
+  ├─ Position:         X: 0, Y: 0
+  ├─ Dimensions:       1920x1080
+  └─ Rotation:         0° (Landscape)
+
+  [HARDWARE IDENTITY (EDID)]
+  ├─ Manufacturer:     BenQ GL2450H (ID: BNQ)
+  ├─ Product Code:     30887
+  ├─ Serial (Binary):  21573
+  ├─ Serial (ASCII):   A8D04798SL0
+  ├─ Manufacture Date: Week 33, Year 2013
+  ├─ Interface:        Digital (Unknown Digital, 8-bit)
+  ├─ Color Gamut:
+  │  ├─ Red:           X=0.6309, Y=0.3506
+  │  ├─ Green:         X=0.3340, Y=0.6152
+  │  ├─ Blue:          X=0.1572, Y=0.0508
+  │  └─ White Point:   X=0.3135, Y=0.3291
+  ├─ Audio Capabilities:
+  │  └─ Codec Descriptor #1: Linear PCM (channels: 2)
+  ├─ Supported Display Modes:
+  │  └─ Mode #1: 1920x1080 @ 60Hz
+  └─ Extension Blocks: 1
+
+  [DDC/CI HARDWARE BUS]
+  ├─ Brightness:       Current: 70 / Max: 100
+  ├─ Contrast:         Current: 71 / Max: 100
+  ├─ Input Connection: Unknown
+  ├─ Power State:      On
+  ├─ Audio Mute State: Unmuted
+  ├─ Audio Volume:     Current: 100 / Max: 100
+  ├─ RGB Hardware Gain:R:100 G:100 B:100
+  ├─ Horizontal Freq:  2.46 kHz
+  ├─ Vertical Freq:    60.00 Hz
+  ├─ Operating Time:   8493 Hours
+  ├─ OSD Language Code:0x2
+  └─ Panel Type Code:  0x3
+
+======================================================
+ MONITOR #2 - Artisr15.6Pro
+======================================================
+  [OS LAYER]
+  ├─ Target ID:        4356
+  ├─ GDI Name:         \\.\DISPLAY3
+  ├─ Active:           Yes
+  ├─ Output Tech:      HDMI
+  └─ Device Path:      \\?\DISPLAY#UGD1503#5&290c49f7&0&UID4356#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+
+  [TOPOLOGY]
+  ├─ Position:         X: 2, Y: 1080
+  ├─ Dimensions:       1920x1080
+  └─ Rotation:         0° (Landscape)
+
+  [HARDWARE IDENTITY (EDID)]
+  ├─ Manufacturer:     Artisr15.6Pro (ID: UGD)
+  ├─ Product Code:     5379
+  ├─ Serial (Binary):  538968854
+  ├─ Serial (ASCII):   20200316
+  ├─ Manufacture Date: Week 14, Year 2020
+  ├─ Interface:        Digital (Unknown Digital, 8-bit)
+  ├─ Color Gamut:
+  │  ├─ Red:           X=0.6641, Y=0.3223
+  │  ├─ Green:         X=0.3057, Y=0.5713
+  │  ├─ Blue:          X=0.1426, Y=0.0684
+  │  └─ White Point:   X=0.3096, Y=0.3213
+  ├─ Supported Display Modes:
+  │  └─ Mode #1: 1920x1080 @ 60Hz
+  └─ Extension Blocks: 0
+
+  [DDC/CI HARDWARE BUS]
+  ├─ Brightness:       Current: 85 / Max: 100
+  ├─ Contrast:         Current: 43 / Max: 100
+  ├─ Input Connection: Unknown
+  ├─ Power State:      Unknown
+  ├─ Audio Mute State: Unknown
+  ├─ RGB Hardware Gain:R:48 G:48 B:49
+  ├─ Horizontal Freq:  6.78 kHz
+  ├─ Vertical Freq:    60.11 Hz
+  ├─ OSD Language Code:0x0
+  └─ Panel Type Code:  0x3
+
+======================================================
+ MONITOR #3 - DTV
+======================================================
+  [OS LAYER]
+  ├─ Target ID:        4352
+  ├─ GDI Name:         \\.\DISPLAY1
+  ├─ Active:           No
+  ├─ Output Tech:      DisplayPort (External)
+  └─ Device Path:      \\?\DISPLAY#TCL0000#5&290c49f7&0&UID4352#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+
+  [HARDWARE IDENTITY (EDID)]
+  ├─ Manufacturer:     DTV (ID: TCL)
+  ├─ Product Code:     0
+  ├─ Serial (Binary):  16843009
+  ├─ Manufacture Date: Week 1, Year 2012
+  ├─ Interface:        Digital (Unknown Digital, 8-bit)
+  ├─ Color Gamut:
+  │  ├─ Red:           X=0.6250, Y=0.3398
+  │  ├─ Green:         X=0.2803, Y=0.5947
+  │  ├─ Blue:          X=0.1553, Y=0.0703
+  │  └─ White Point:   X=0.2832, Y=0.2979
+  ├─ Audio Capabilities:
+  │  └─ Codec Descriptor #1: Linear PCM (channels: 2)
+  ├─ Supported Display Modes:
+  │  └─ Mode #1: 1360x768 @ 60Hz
+  │  └─ Mode #2: 1280x720 @ 60Hz
+  └─ Extension Blocks: 1
+
+  [DDC/CI HARDWARE BUS]
+  └─ Status:           Not available (Monitor inactive or DDC blocked)
+

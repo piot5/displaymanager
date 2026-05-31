@@ -1,0 +1,10 @@
+--- Monitor Diagnostic Report ---
+Monitor 1: BenQ GL2450H
+  Interface: 4
+  Device Path: \\?\DISPLAY#BNQ78A7#5&290c49f7&0&UID4354#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+Monitor 2: DTV
+  Interface: 5
+  Device Path: \\?\DISPLAY#TCL0000#5&290c49f7&0&UID4352#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+Monitor 3: Artisr15.6Pro
+  Interface: 4
+  Device Path: \\?\DISPLAY#UGD1503#5&290c49f7&0&UID4356#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}

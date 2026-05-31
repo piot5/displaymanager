@@ -1,0 +1,74 @@
+[workspace]
+members = [
+    "crates/df_ddc",
+    "crates/df_displmgr",
+    "crates/df_displmgr_info",
+    "apps/displaymanager_cli",
+    "apps/displaymanager_studio",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Interne Modul-Verknüpfungen
+df_ddc = { path = "crates/df_ddc" }
+df_displmgr = { path = "crates/df_displmgr" }
+df_displmgr_info = { path = "crates/df_displmgr_info" }
+
+# Externe Basis-Bibliotheken
+anyhow = "1.0"
+async-trait = "0.1"
+base64 = "0.22"
+clap = { version = "4.4", features = ["derive"] }
+criterion = { version = "0.5", features = ["async_tokio"] }
+drm = "0.12"
+env_logger = "0.11"
+futures = "0.3"
+libc = "0.2"
+log = "0.4"
+parking_lot = "0.12.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9.34"
+snafu = "0.8"
+tempfile = "3.8"
+thiserror = "2.0"
+tokio = { version = "1.0", features = ["full"] }
+toml = "0.8"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.31", features = ["client"] }
+wayland-protocols-wlr = { version = "0.2", features = ["client"] }
+
+# GUI-spezifische Abhängigkeiten
+bytemuck = { version = "1.13", features = ["derive"] }
+chrono = "0.4.44"
+eframe = { version = "0.27", features = ["persistence", "glow"] }
+egui = "0.27"
+egui_extras = { version = "0.27", features = ["syntect"] }
+image = "0.24"
+pollster = "0.4.0"
+raw-window-handle = "0.6"
+rfd = "0.14"
+rodio = "0.17"
+wgpu = "0.19"
+zip = "0.6"
+
+[workspace.dependencies.windows]
+version = "0.52"
+features = [
+    "Win32_Devices_Display",
+    "Win32_Graphics_Gdi",
+    "Win32_Foundation",
+    "Win32_System_Registry",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_System_Wmi",
+    "Win32_System_Com",
+    "Win32_System_Variant",
+    "Win32_System_Ole",
+    "Win32_UI",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Security",
+    "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+    "Win32_Graphics_Dxgi_Common"
+]

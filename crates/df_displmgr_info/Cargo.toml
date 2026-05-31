@@ -1,0 +1,30 @@
+[package]
+name = "df_displmgr_info"
+version = "0.1.0"
+edition = "2021"
+authors = ["piot5"]
+description = "Unified display management and hardware telemetry framework."
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "df_displmgr_info"
+path = "src/lib.rs"
+
+[dependencies]
+# Workspace-Inheritance für alle Basis-Dependencies
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
+base64 = { workspace = true }
+
+# Windows-Backends (erben Features vom Workspace)
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+tempfile = { workspace = true }
+criterion = { workspace = true, features = ["async_tokio"] }
