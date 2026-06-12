@@ -1,5 +1,9 @@
 # df_ddc
 
+[![Crates.io](https://img.shields.io/crates/v/df_ddc.svg)](https://crates.io/crates/df_ddc)
+[![License](https://img.shields.io/crates/l/df_ddc.svg)](https://github.com/piot5/displaymanager/blob/main/LICENSE-MIT)
+[![CI](https://github.com/piot5/displaymanager/actions/workflows/ci.yml/badge.svg)](https://github.com/piot5/displaymanager/actions/workflows/ci.yml)
+
 DDC/CI (VESA MCCS) monitor control backend. Low-level I/O layer for VCP
 features: brightness, contrast, volume, input, power.
 

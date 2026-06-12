@@ -293,3 +293,145 @@ impl EdidParser {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a minimal valid 128-byte EDID base block with correct checksum.
+    fn make_test_edid(model_name: &str, mfg_bytes: [u8; 2]) -> Vec<u8> {
+        let mut raw = vec![0u8; 128];
+        // EDID header
+        raw[0..8].copy_from_slice(&EDID_HEADER);
+        // Manufacturer ID (bytes 8-9)
+        raw[8] = mfg_bytes[0];
+        raw[9] = mfg_bytes[1];
+        // Product code (bytes 10-11)
+        raw[10] = 0x01;
+        raw[11] = 0x00;
+        // Serial number (bytes 12-15)
+        raw[12] = 0x01;
+        raw[13] = 0x00;
+        raw[14] = 0x00;
+        raw[15] = 0x00;
+        // Week/year (bytes 16-17)
+        raw[16] = 10;
+        raw[17] = 36; // 1990 + 36 = 2026
+        // Video input byte (byte 20) — digital, HDMI
+        raw[20] = 0x82; // digital + HDMI (interface type 2)
+        // Chromaticity bytes 25-34 (zeroed is fine)
+        // Model name in descriptor at offset 54
+        let name_bytes = model_name.as_bytes();
+        raw[54] = 0;
+        raw[55] = 0;
+        raw[56] = 0;
+        raw[57] = 0xFC; // Monitor name descriptor tag
+        raw[58] = 0;
+        let end = 59 + name_bytes.len().min(13);
+        raw[59..end].copy_from_slice(&name_bytes[..end - 59]);
+        // Extension block count (byte 126)
+        raw[126] = 0;
+        // Fix checksum: compute so sum of all 128 bytes == 0 mod 256
+        let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
+        raw[127] = sum.wrapping_neg();
+        raw
+    }
+
+    #[test]
+    fn test_parse_valid_edid() {
+        let raw = make_test_edid("TestMonitor", [0x00, 0x00]);
+        let result = EdidParser::parse(&raw);
+        assert!(result.is_ok(), "parse should succeed on valid EDID");
+        let data = result.unwrap();
+        assert_eq!(data.model_name, "TestMonitor");
+        assert_eq!(data.year_of_manufacture, 2026);
+    }
+
+    #[test]
+    fn test_parse_too_short() {
+        let raw = vec![0u8; 64];
+        let result = EdidParser::parse(&raw);
+        assert!(matches!(result, Err(EdidError::ParseError)));
+    }
+
+    #[test]
+    fn test_parse_bad_header() {
+        let mut raw = make_test_edid("X", [0x00, 0x00]);
+        raw[0] = 0x01; // corrupt header
+        // Recompute checksum
+        let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
+        raw[127] = sum.wrapping_neg();
+        let result = EdidParser::parse(&raw);
+        assert!(matches!(result, Err(EdidError::ParseError)));
+    }
+
+    #[test]
+    fn test_parse_bad_checksum() {
+        let mut raw = make_test_edid("X", [0x00, 0x00]);
+        raw[127] = 0xFF; // invalid checksum
+        let result = EdidParser::parse(&raw);
+        assert!(matches!(result, Err(EdidError::ParseError)));
+    }
+
+    #[test]
+    fn test_manufacturer_id_decoding() {
+        // Mfg ID bytes encode 3 x 5-bit chars: A=1, B=2, C=3 → '@'+1='A', '@'+2='B', '@'+3='C'
+        let mut raw = make_test_edid("M", [0x00, 0x00]);
+        // char1=0x01, char2=0x02, char3=0x03 → packed: (1<<10)|(2<<5)|3 = 0x0443
+        raw[8] = 0x04;
+        raw[9] = 0x43;
+        let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
+        raw[127] = sum.wrapping_neg();
+        let data = EdidParser::parse(&raw).unwrap();
+        assert_eq!(data.manufacturer_id, "ABC");
+    }
+
+    #[test]
+    fn test_video_interface_digital_hdmi() {
+        let mut raw = make_test_edid("V", [0x00, 0x00]);
+        raw[20] = 0x86; // digital, 10-bit, HDMI (type 2)
+        let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
+        raw[127] = sum.wrapping_neg();
+        let data = EdidParser::parse(&raw).unwrap();
+        match data.video_interface {
+            VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+                assert_eq!(bit_depth, 10);
+                assert!(matches!(interface_type, DigitalInterfaceType::Hdmi));
+            }
+            _ => panic!("Expected Digital interface"),
+        }
+    }
+
+    #[test]
+    fn test_video_interface_analog() {
+        let mut raw = make_test_edid("A", [0x00, 0x00]);
+        raw[20] = 0x0F; // analog, 0.714V, setup expected
+        let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
+        raw[127] = sum.wrapping_neg();
+        let data = EdidParser::parse(&raw).unwrap();
+        match data.video_interface {
+            VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
+                assert!((signal_level_v - 0.714).abs() < 0.001);
+                assert!(setup_expected);
+            }
+            _ => panic!("Expected Analog interface"),
+        }
+    }
+
+    #[test]
+    fn test_validate_checksum() {
+        let mut raw = make_test_edid("C", [0x00, 0x00]);
+        assert!(EdidParser::validate_checksum(&raw, 0));
+        raw[127] = 0xFF;
+        assert!(!EdidParser::validate_checksum(&raw, 0));
+    }
+
+    #[test]
+    fn test_parse_chromaticity() {
+        // All-zero chromaticity block should produce 0.0 values
+        let zeros = [0u8; 10];
+        let coords = EdidParser::parse_chromaticity(&zeros);
+        assert_eq!(coords.red_x, 0.0);
+        assert_eq!(coords.white_y, 0.0);
+    }
+}

@@ -1,3 +1,36 @@
+//! # df_ddc
+//!
+//! DDC/CI (VESA MCCS) monitor control backend.
+//!
+//! This crate provides low-level I/O for VCP features: brightness, contrast,
+//! volume, input source, and power state across Windows and Linux.
+//!
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use df_ddc::list_monitors;
+//!
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     for dev in list_monitors() {
+//!         let caps = dev.inner.get_capabilities()?;
+//!         println!("{}: brightness={}/{}", dev.info, caps.brightness, caps.brightness_max);
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Platform Support
+//!
+//! | OS | Enumeration | I/O |
+//! |---|---|---|
+//! | Windows | `EnumDisplayMonitors` + `GetPhysicalMonitorsFromHMONITOR` | `HighLevelMonitorConfigurationAPI` |
+//! | Linux | scan of `/dev/i2c-*` with VCP `0x10` probe | raw I2C, DDC packets over `i2c-dev` |
+//!
+//! ## License
+//!
+//! Licensed under either of [MIT](../LICENSE-MIT) or [Apache-2.0](../LICENSE-APACHE)
+//! at your option.
+
 pub mod ddc_types;
 pub mod ddc_trait;
 pub mod ddc_backends;

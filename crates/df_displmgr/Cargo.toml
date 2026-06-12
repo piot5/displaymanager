@@ -7,8 +7,9 @@ description = "A unified cross-platform display configuration manager for Window
 license = "MIT"
 repository = "https://github.com/piot5/displaymanager"
 homepage = "https://github.com/piot5/displaymanager"
+documentation = "https://docs.rs/df_displmgr"
 readme = "README.md"
-keywords = ["display", "monitor", "windows-ccd", "wayland", "hdr"]
+keywords = ["display", "monitor", "wayland", "drm", "hdr"]
 categories = ["os::windows-apis", "os::linux-apis", "gui"]
 exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
 

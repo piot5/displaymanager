@@ -1,5 +1,9 @@
 # df_displmgr_info
 
+[![Crates.io](https://img.shields.io/crates/v/df_displmgr_info.svg)](https://crates.io/crates/df_displmgr_info)
+[![License](https://img.shields.io/crates/l/df_displmgr_info.svg)](https://github.com/piot5/displaymanager/blob/main/LICENSE-MIT)
+[![CI](https://github.com/piot5/displaymanager/actions/workflows/ci.yml/badge.svg)](https://github.com/piot5/displaymanager/actions/workflows/ci.yml)
+
 Display management and hardware telemetry. Reads raw EDID blocks, parses them,
 combines them with DDC statistics (`DeepDdcStats`) and topology
 (`MonitorTopology`), and exposes a single `MonitorDetails` per display.

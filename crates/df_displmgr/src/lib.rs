@@ -23,6 +23,10 @@
 //! - `ctrl_center` — enables high-level activation logic (`force_activate_by_monitor_name`,
 //!   `activate_with_topology_restore`, etc.)
 //! - `wgpu_types` — enables WGPU integration for HDR pipelines
+//!
+//! ## License
+//!
+//! Licensed under [MIT](../LICENSE-MIT) at your option.
 
 pub mod error;
 pub mod types;

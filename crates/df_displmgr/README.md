@@ -1,5 +1,9 @@
 # df_displmgr
 
+[![Crates.io](https://img.shields.io/crates/v/df_displmgr.svg)](https://crates.io/crates/df_displmgr)
+[![License](https://img.shields.io/crates/l/df_displmgr.svg)](https://github.com/piot5/displaymanager/blob/main/LICENSE-MIT)
+[![CI](https://github.com/piot5/displaymanager/actions/workflows/ci.yml/badge.svg)](https://github.com/piot5/displaymanager/actions/workflows/ci.yml)
+
 Cross-platform display configuration manager. Wraps the OS-specific
 configuration APIs (Windows CCD on Windows, Wayland/wlroots + DRM on Linux)
 behind a single async trait model.
