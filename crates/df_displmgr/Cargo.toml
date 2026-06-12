@@ -10,6 +10,7 @@ homepage = "https://github.com/piot5/displaymanager"
 readme = "README.md"
 keywords = ["display", "monitor", "windows-ccd", "wayland", "hdr"]
 categories = ["os::windows-apis", "os::linux-apis", "gui"]
+exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
 
 [lib]
 name = "df_displmgr"

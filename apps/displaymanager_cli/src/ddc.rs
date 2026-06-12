@@ -1,32 +1,3 @@
-//! CLI glue for `df_ddc`: brightness, contrast, input, power.
-//!
-//! This module provides the command-line interface for Direct Display Channel (DDC/CI)
-//! protocol operations. It enables control of display properties such as brightness,
-//! contrast, volume, power state, and input sources through DDC/CI communication.
-//!
-//! Features:
-//! - Brightness control (0-100 scale)
-//! - Contrast adjustment (0-100 scale)  
-//! - Volume control (0-100 scale)
-//! - Power state management (on/off)
-//! - Input source switching (DisplayPort 1, HDMI 1, etc.)
-//! - Hardware capability reporting
-//!
-//! Functions:
-//! - run: Main entry point for DDC commands
-//! - parse_input_source: Parse input source strings to enum values
-//!
-//! Usage:
-//! displaymanager ddc --id <monitor_index> --action <action> [options]
-//!
-//! Actions:
-//! - list: Show monitor capabilities and current settings
-//! - brightness: Set brightness level (0-100)
-//! - contrast: Set contrast level (0-100)  
-//! - volume: Set volume level (0-100)
-//! - power: Set power state (on/off)
-//! - input: Set input source (dp1, dp2, hdmi1, hdmi2)
-
 use crate::cli::{DdcAction, DdcArgs};
 use anyhow::anyhow;
 use df_ddc::ddc_types::{InputSource, PowerState, VcpCode};

@@ -18,6 +18,6 @@ pub enum Commands {
     /// Display topology: scan, info, set
     #[command(subcommand)]
     Display(DisplaySubcommand),
-    /// DDC/CI brightness, contrast, input, power (df_ddc)
+    /// DDC/CI brightness, contrast, input, power
     Ddc(DdcArgs),
 }

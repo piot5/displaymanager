@@ -11,7 +11,7 @@ use crate::types::{OutputState, HdrState, HdrMode, DisplayId};
 
 pub mod displmgr_ccd_api;
 pub mod displmgr_ccd_sys;
-pub mod displmgr_ccd_editor; // Submodul deklarieren
+pub mod displmgr_ccd_editor;
 
 use self::displmgr_ccd_api::query_config_sync;
 use self::displmgr_ccd_editor::CcdOutputEditor;

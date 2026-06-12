@@ -10,6 +10,7 @@ homepage = "https://github.com/piot5/displaymanager"
 readme = "README.md"
 keywords = ["display", "monitor", "ddc", "topology", "ccd"]
 categories = ["os::windows-apis", "os::linux-apis", "command-line-utilities"]
+exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
 
 [dependencies]
 anyhow = { workspace = true }

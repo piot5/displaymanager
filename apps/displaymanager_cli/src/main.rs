@@ -1,11 +1,3 @@
-//! Display Manager CLI Application
-//!
-//! Structured into logical subcommands:
-//!   display scan     — scan all monitors, EDID report, JSON export
-//!   display info     — single-monitor details
-//!   display set      — topology: position, resolution, rotation, HDR, scale, primary
-//!   ddc              — brightness, contrast, volume, input, power, color-gains
-
 mod cli;
 mod ddc;
 mod info;
@@ -42,7 +34,6 @@ async fn main() -> anyhow::Result<()> {
                 set::apply(&args.output, &args).await?;
             }
         },
-        // `edid` removed: merged into `display scan`
         Commands::Ddc(args) => ddc::run(args)?,
     }
 

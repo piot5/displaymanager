@@ -6,18 +6,13 @@ use windows::core::PCWSTR;
 use windows::Win32::Graphics::Gdi::{
     ChangeDisplaySettingsExW, DEVMODEW, DEVMODE_DISPLAY_ORIENTATION,
     DISP_CHANGE_SUCCESSFUL,
-    // FIX: CDS_RESET removed — it was wrong for the global flush step.
-    // CDS_TYPE(0) is now used directly in Phase 3.
     CDS_TYPE, CDS_UPDATEREGISTRY, CDS_NORESET, CDS_SET_PRIMARY,
     DM_PELSWIDTH, DM_PELSHEIGHT, DM_POSITION, DM_DISPLAYORIENTATION,
-    // FIX: Added DMDO constants so that staged rotation changes are written
-    // to DEVMODEW during commit (they were previously ignored).
     DMDO_DEFAULT, DMDO_90, DMDO_180, DMDO_270,
 };
 
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
-// FIX: Added DisplayRotation — required for the rotation → DMDO match in commit().
 use crate::types::{OutputState, DisplayId, DisplayRotation};
 
 pub mod displmgr_gdi_api;
@@ -39,10 +34,8 @@ pub struct GdiTopology {
     pub(crate) target_primary_id: Option<String>,
 }
 
-// In crates\df_displmgr\src\backends\windows\displmgr_gdi.rs
-
 pub struct DisplayRestorer {
-    // Speichert: (Name, aktiv_status, DEVMODEW)
+    // Stores: (name, was_active, DEVMODEW)
     pub snapshot: Vec<(Vec<u16>, bool, DEVMODEW)>,
 }
 
@@ -52,11 +45,9 @@ impl Drop for DisplayRestorer {
             let pcw_name = PCWSTR(name_u16.as_ptr());
             let mut reset_dm = *old_dm;
 
-            // Flags setzen, um Registry zu aktualisieren
             let flags = CDS_UPDATEREGISTRY | CDS_NORESET;
             
             if !*was_active {
-                // Wenn es vorher inaktiv war, auf 0 setzen
                 reset_dm.dmPelsWidth = 0;
                 reset_dm.dmPelsHeight = 0;
                 reset_dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_POSITION;
@@ -66,7 +57,6 @@ impl Drop for DisplayRestorer {
                 let _ = ChangeDisplaySettingsExW(pcw_name, Some(&reset_dm), None, flags, None);
             }
         }
-        // Finaler Flush nach allen Restores
         unsafe {
             let _ = ChangeDisplaySettingsExW(None, None, None, CDS_TYPE(0), None);
         }
