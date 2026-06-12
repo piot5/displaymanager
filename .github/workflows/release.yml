@@ -9,42 +9,30 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            ext: .exe
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            ext: ''
-    runs-on: ${{ matrix.os }}
+  build-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.target }}
+          target: x86_64-pc-windows-msvc
 
       - name: Build release
-        run: cargo build --release -p displaymanager_cli --target ${{ matrix.target }}
+        run: cargo build --release -p displaymanager_cli --target x86_64-pc-windows-msvc
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: displaymanager_cli-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/displaymanager_cli${{ matrix.ext }}
+          name: displaymanager_cli-windows
+          path: target/x86_64-pc-windows-msvc/release/displaymanager_cli.exe
 
   release:
-    needs: build
+    needs: build-windows
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-
-      - name: Display structure of downloaded files
-        run: ls -R
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -52,5 +40,4 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            displaymanager_cli-x86_64-pc-windows-msvc/displaymanager_cli.exe
-            displaymanager_cli-x86_64-unknown-linux-gnu/displaymanager_cli
+            displaymanager_cli-windows/displaymanager_cli.exe
