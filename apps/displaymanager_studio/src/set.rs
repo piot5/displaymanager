@@ -54,9 +54,14 @@ pub async fn apply_all_settings(target_id_val: u32, args: &DemoArgs) -> Result<(
     if args.off {
         apply_gdi_fallback(&target.gdi_name, &args.output_config, true).await?;
     } else {
+        // Try the native CCD (Windows Display Config) path first.
+        // CCD supports advanced features like persistence across reboots.
         let ccd_res = apply_native_layout_settings(&target.device_path, &args.output_config).await;
 
-        if let Err(_) = ccd_res {
+        if let Err(e) = ccd_res {
+            // Fall back to GDI (Windows Graphics Device Interface) when CCD fails.
+            // GDI is more limited but works on older systems or for basic operations.
+            eprintln!("CCD path failed ({}), falling back to GDI", e);
             apply_gdi_fallback(&target.gdi_name, &args.output_config, false).await?;
         }
     }
@@ -69,11 +74,11 @@ fn apply_ddc_settings(gdi_name: &str, friendly_name: &str, args: &DemoArgs) -> R
     let gdi_lower = gdi_name.to_lowercase();
     let friendly_lower = friendly_name.to_lowercase();
     
+    // Find the monitor matching GDI name or friendly name
     let mon = monitors.iter().find(|m| {
         let info = m.info.to_lowercase();
         info.contains(&gdi_lower) || 
-        (!friendly_lower.is_empty() && info.contains(&friendly_lower)) ||
-        (friendly_lower.contains("artisr") && info.contains("generic pnp"))
+        (!friendly_lower.is_empty() && info.contains(&friendly_lower))
     })
     .with_context(|| {
         let available: Vec<String> = monitors.iter().map(|m| m.info.clone()).collect();

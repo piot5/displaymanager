@@ -1,7 +1,13 @@
-use clap::{Parser, Subcommand, Args};
+mod cli_ddc;
+pub mod display;
+
+pub use cli_ddc::{DdcAction, DdcArgs};
+pub use display::{DisplaySubcommand, SetArgs};
+
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "flux-cli", version = "1.0", about = "Unified Display/DDC Manager")]
+#[command(name = "displaymanager_cli", version = "1.0", about = "Unified Display/DDC Manager")]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -9,33 +15,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Display(DisplayArgs),
-    Edid,
+    /// Display topology: scan, info, set
+    #[command(subcommand)]
+    Display(DisplaySubcommand),
+    /// DDC/CI brightness, contrast, input, power (df_ddc)
     Ddc(DdcArgs),
-}
-
-#[derive(Args, Debug)]
-pub struct DisplayArgs {
-    #[arg(short, long)] pub scan: bool,
-    #[arg(long)] pub output: Option<String>,
-    #[arg(long)] pub mode: Option<String>,
-    #[arg(long)] pub pos: Option<String>,
-    #[arg(long)] pub rotate: Option<String>,
-    #[arg(long)] pub off: bool,
-}
-
-#[derive(Args, Debug)]
-pub struct DdcArgs {
-    #[arg(short, long, default_value_t = 0)] pub id: usize,
-    #[command(subcommand)] pub action: DdcAction,
-}
-
-#[derive(Subcommand, Debug)]
-pub enum DdcAction {
-    List,
-    Brightness { value: u32 },
-    Contrast { value: u32 },
-    Volume { value: u32 },
-    Power { state: String },
-    Input { source: String },
 }

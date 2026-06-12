@@ -5,6 +5,11 @@ edition = "2021"
 authors = ["piot5"]
 description = "Unified display management and hardware telemetry framework."
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+readme = "README.md"
+keywords = ["display", "monitor", "edid", "telemetry", "windows"]
+categories = ["os::windows-apis", "os::linux-apis", "hardware-support"]
 
 [lib]
 name = "df_displmgr_info"

@@ -4,7 +4,9 @@ use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
 
 // Core-Typen aus der Library
-use df_displmgr::types::{OutputState, DisplayRotation, HdrState, HdrMode};
+use df_displmgr::types::{
+    OutputState, DisplayRotation, HdrState, HdrMode, DisplayId, DisplayIdentity, Rect, Point2D, Extent2D, ConnectorId, AdapterId
+};
 
 #[cfg(target_os = "windows")]
 use windows::core::PCWSTR;
@@ -49,19 +51,26 @@ fn bench_topology_mutation(c: &mut Criterion) {
         let mut ccd_outputs = Vec::new();
         for i in 0..4 {
             ccd_outputs.push(OutputState {
-                id: format!("{}", i),
-                name: format!("CCD Monitor {}", i),
-                x: i * 1920,
-                y: 0,
-                width: 1920,
-                height: 1080,
+                identity: DisplayIdentity {
+                    id: DisplayId(format!("{}", i)),
+                    connector_id: ConnectorId(String::new()),
+                    adapter_id: AdapterId(String::new()),
+                    hardware_uuid: None,
+                    monitor_name: format!("CCD Monitor {}", i),
+                },
+                geometry: Rect {
+                    origin: Point2D { x: i * 1920, y: 0 },
+                    size: Extent2D { width: 1920, height: 1080 },
+                },
                 refresh_rate: 60000,
                 rotation: DisplayRotation::Rotate0,
                 hdr_state: HdrState::Disabled,
                 hdr_mode: HdrMode::Default,
                 scale: 1.0,
-                resolution: Some((1920, 1080)),
+                native_resolution: Some(Extent2D { width: 1920, height: 1080 }),
+                supported_modes: Vec::new(), // Hinzugefügt
                 enabled: true,
+                is_primary: false, // Hinzugefügt, da es in der Definition von OutputState obligatorisch ist
             });
         }
 
@@ -76,19 +85,26 @@ fn bench_topology_mutation(c: &mut Criterion) {
         let mut ccd_outputs = Vec::new();
         for i in 0..8 {
             ccd_outputs.push(OutputState {
-                id: format!("{}", i),
-                name: format!("Extreme Monitor {}", i),
-                x: i * 1920,
-                y: 0,
-                width: 2560,
-                height: 1440,
+                identity: DisplayIdentity {
+                    id: DisplayId(format!("{}", i)),
+                    connector_id: ConnectorId(String::new()),
+                    adapter_id: AdapterId(String::new()),
+                    hardware_uuid: None,
+                    monitor_name: format!("Extreme Monitor {}", i),
+                },
+                geometry: Rect {
+                    origin: Point2D { x: i * 1920, y: 0 },
+                    size: Extent2D { width: 2560, height: 1440 },
+                },
                 refresh_rate: 144000,
                 rotation: DisplayRotation::Rotate0,
-                hdr_state: HdrState::Enabled,
+                native_resolution: Some(Extent2D { width: 2560, height: 1440 }),
+                hdr_state: HdrState::Disabled, // Hinzugefügt, da es fehlte
                 hdr_mode: HdrMode::Game,
                 scale: 1.25,
-                resolution: Some((2560, 1440)),
+                supported_modes: Vec::new(), // Hinzugefügt
                 enabled: true,
+                is_primary: false, // Hinzugefügt, da es in der Definition von OutputState obligatorisch ist
             });
         }
 
@@ -118,19 +134,26 @@ fn bench_topology_mutation(c: &mut Criterion) {
         
         for i in 0..4 {
             let state = OutputState {
-                id: format!("{}", i),
-                name: format!("Monitor {}", i),
-                x: i * 1920,
-                y: 0,
-                width: 1920,
-                height: 1080,
+                identity: DisplayIdentity {
+                    id: DisplayId(format!("{}", i)),
+                    connector_id: ConnectorId(String::new()),
+                    adapter_id: AdapterId(String::new()),
+                    hardware_uuid: None,
+                    monitor_name: format!("Monitor {}", i),
+                },
+                geometry: Rect {
+                    origin: Point2D { x: i * 1920, y: 0 },
+                    size: Extent2D { width: 1920, height: 1080 },
+                },
                 refresh_rate: 60000,
                 rotation: DisplayRotation::Rotate0,
                 hdr_state: HdrState::Disabled,
                 hdr_mode: HdrMode::Default,
                 scale: 1.0,
-                resolution: Some((1920, 1080)),
+                native_resolution: Some(Extent2D { width: 1920, height: 1080 }),
+                supported_modes: Vec::new(), // Hinzugefügt
                 enabled: true,
+                is_primary: false, // Hinzugefügt, da es in der Definition von OutputState obligatorisch ist
             };
             current_state.push(state.clone());
             target_state.push(state);
@@ -145,10 +168,10 @@ fn bench_topology_mutation(c: &mut Criterion) {
                 .iter()
                 .zip(black_box(&target_state).iter())
                 .any(|(curr, tar)| {
-                    curr.x != tar.x 
-                        || curr.y != tar.y 
-                        || curr.width != tar.width 
-                        || curr.height != tar.height 
+                    curr.geometry.origin.x != tar.geometry.origin.x
+                        || curr.geometry.origin.y != tar.geometry.origin.y
+                        || curr.geometry.size.width != tar.geometry.size.width
+                        || curr.geometry.size.height != tar.geometry.size.height
                         || curr.rotation != tar.rotation
                         || curr.refresh_rate != tar.refresh_rate
                 });

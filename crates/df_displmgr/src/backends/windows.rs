@@ -11,13 +11,24 @@ use windows::Win32::Devices::Display as WinDisplay;
 
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
-use crate::types::{OutputState, DisplayId};
+use crate::types::{OutputState, DisplayId, Extent2D, Point2D, HdrState};
 
 pub mod displmgr_ccd;
 pub mod displmgr_gdi;
 
 use self::displmgr_ccd::CcdTopology;
 use self::displmgr_gdi::GdiTopology;
+
+// Re-export GDI-level functions for public use
+pub use self::displmgr_gdi::{force_activate_by_monitor_name, force_all};
+
+// Re-export CCD-level functions for public use
+pub use self::displmgr_ccd::{
+    DisplayTargetInfo,
+    query_all_display_targets,
+    find_display_target,
+    ccd_wake_display,
+};
 
 /// Holds OS-specific routing data connecting CCD target definitions to GDI device names.
 #[derive(Debug, Deserialize, Clone)]
@@ -80,8 +91,8 @@ fn enrich_gdi_topology(gdi_backend: &mut GdiTopology, hardware_map: &Option<Edid
     }
 }
 
-/// Orchestrates the Windows graphics subsystem by routing requests dynamically
-/// between the modern CCD API and the legacy GDI fallback interface.
+/// Windows display backend: routes requests between the modern CCD API
+/// and the legacy GDI fallback.
 pub struct WinDisplayManager {
     /// Active instance of the modern Connecting and Configuring Displays (CCD) backend.
     ccd: Option<CcdTopology>,
@@ -98,6 +109,146 @@ impl WinDisplayManager {
     /// This resolves the dead_code warning by exposing an explicit getter interface.
     pub fn hardware_map(&self) -> Option<&EdidDump> {
         self.hardware_map.as_ref()
+    }
+
+    /// Returns whether the CCD backend is currently active and being used for routing.
+    pub fn uses_ccd(&self) -> bool {
+        self.use_ccd
+    }
+
+    /// Calculates a position to the right of the rightmost active monitor.
+    /// Useful for automatically placing a newly activated display.
+    pub fn auto_position_right_of(&self) -> Point2D {
+        let outputs = self.get_outputs();
+        let rightmost_x = outputs.iter()
+            .filter(|o| o.enabled && o.geometry.size.width > 0)
+            .map(|o| o.geometry.origin.x + o.geometry.size.width as i32)
+            .max()
+            .unwrap_or(1920);
+        Point2D { x: rightmost_x, y: 0 }
+    }
+}
+
+/// High-level activation result containing details about what was done.
+#[derive(Debug, Clone)]
+pub struct ActivationResult {
+    /// The CCD target identifier for the activated display.
+    pub target_id: u32,
+    /// The friendly monitor name.
+    pub monitor_name: String,
+    /// Whether the display was already active before the operation.
+    pub was_already_active: bool,
+    /// Whether the CCD wake step was performed.
+    pub ccd_wake_performed: bool,
+}
+
+/// Display activation sequence:
+/// 1. Search for the display by name across CCD (including inactive) and GDI
+/// 2. Perform CCD wake if the display is inactive
+/// 3. Optionally configure resolution and position via the topology editor
+/// 4. Commit the changes
+///
+/// This is the high-level equivalent of what `test_activate_ccd.rs` does,
+/// but integrated into the library API.
+pub async fn activate_display(
+    manager: &mut WinDisplayManager,
+    monitor_name: &str,
+    resolution: Option<Extent2D>,
+    position: Option<Point2D>,
+) -> DisplayResult<ActivationResult> {
+    // Step 1: Search for the display target
+    let target = find_display_target(monitor_name)
+        .ok_or_else(|| DisplayError::NotFound(DisplayId(monitor_name.to_string())))?;
+
+    let target_id = target.target_id;
+    let was_already_active = target.is_active;
+    let mut ccd_wake_performed = false;
+
+    // Step 2: CCD wake if inactive
+    if !target.is_active {
+        ccd_wake_performed = ccd_wake_display(target_id)?;
+    }
+
+    // Step 3: Configure via topology editor
+    // Pre-compute auto position before mutable borrow of manager
+    let final_pos = position.unwrap_or_else(|| manager.auto_position_right_of());
+    let did = DisplayId(target_id.to_string());
+    {
+        let mut editor = manager.edit_output(&did)?;
+
+        if let Some(res) = resolution {
+            let _ = editor.set_resolution(res);
+        }
+
+        let _ = editor.set_position(final_pos);
+
+        // Ensure the display is enabled
+        let _ = editor.set_enabled(true);
+    }
+
+    // Step 4: Commit changes
+    manager.commit().await?;
+
+    Ok(ActivationResult {
+        target_id,
+        monitor_name: target.friendly_name,
+        was_already_active,
+        ccd_wake_performed,
+    })
+}
+
+/// Applies GDI-staged HDR and scale values into the CCD device-info interface.
+/// Called after a GDI commit to synchronize state back to the modern CCD layer.
+fn apply_gdi_state_to_ccd(gdi: &GdiTopology, fresh_ccd: &CcdTopology) {
+    use crate::backends::windows::displmgr_ccd::displmgr_ccd_sys as ccd_sys;
+
+    for (_gdi_name, gdi_state) in &gdi.outputs {
+        let Some(ref hid) = gdi_state.identity.hardware_uuid else { continue };
+        let Ok(target_id) = hid.parse::<u32>() else { continue };
+
+        for path in &fresh_ccd.data.paths {
+            if path.targetInfo.id != target_id {
+                continue;
+            }
+
+            // Apply DPI scale if different from default
+            if (gdi_state.scale - 1.0).abs() > f64::EPSILON {
+                let scale_percent = (gdi_state.scale * 100.0).round() as i32;
+                let mut payload = ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET {
+                    header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
+                        r#type: ccd_sys::DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE,
+                        size: std::mem::size_of::<ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET>() as u32,
+                        adapterId: path.targetInfo.adapterId,
+                        id: target_id,
+                    },
+                    scale_factor_as_percent: scale_percent,
+                };
+                let res = unsafe { WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
+                if res != 0 {
+                    eprintln!("Warning: DPI scale set failed for target {}: 0x{:08X}", target_id, res);
+                }
+            }
+
+            // Apply HDR state if requested
+            if gdi_state.hdr_state != HdrState::Disabled {
+                let enabled = if gdi_state.hdr_state == HdrState::Enabled { 1 } else { 0 };
+                let mut payload = ccd_sys::DISPLAYCONFIG_SET_HDR_STATE {
+                    header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
+                        r#type: ccd_sys::DISPLAYCONFIG_DEVICE_INFO_SET_HDR_STATE,
+                        size: std::mem::size_of::<ccd_sys::DISPLAYCONFIG_SET_HDR_STATE>() as u32,
+                        adapterId: path.targetInfo.adapterId,
+                        id: target_id,
+                    },
+                    enabled,
+                };
+                let res = unsafe { WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
+                if res != 0 {
+                    eprintln!("Warning: HDR set failed for target {}: 0x{:08X}", target_id, res);
+                }
+            }
+
+            break; // Found the matching path, no need to check further
+        }
     }
 }
 
@@ -220,54 +371,7 @@ impl UniversalTopology for WinDisplayManager {
 
             // Attempt to recover the CCD layer state following manual GDI framework rewrites
             if let Ok(fresh_ccd) = CcdTopology::acquire() {
-                // Map GDI-staged HDR and scale values into the modern CCD device-info
-                // interface where a hardware mapping token (target id) is available.
-                for (_gdi_name, gdi_state) in &self.gdi.outputs {
-                    if let Some(ref hid) = gdi_state.identity.hardware_uuid {
-                        if let Ok(target_id) = hid.parse::<u32>() {
-                            for path in &fresh_ccd.data.paths {
-                                if path.targetInfo.id == target_id {
-                                    // Apply DPI scale if different from default
-                                    if (gdi_state.scale - 1.0).abs() > f64::EPSILON {
-                                        let scale_percent = (gdi_state.scale * 100.0).round() as i32;
-                                        let mut payload = crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET {
-                                            header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
-                                                r#type: crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE,
-                                                size: std::mem::size_of::<crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET>() as u32,
-                                                adapterId: path.targetInfo.adapterId,
-                                                id: target_id,
-                                            },
-                                            scale_factor_as_percent: scale_percent,
-                                        };
-                                        let res = unsafe { WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
-                                        if res != 0 {
-                                            eprintln!("Warning: DISPLAYCONFIG DPI scale set failed for target {}: {}", target_id, res);
-                                        }
-                                    }
-
-                                    // Apply HDR state if requested
-                                    if gdi_state.hdr_state != crate::types::HdrState::Disabled {
-                                        let enabled = if gdi_state.hdr_state == crate::types::HdrState::Enabled { 1 } else { 0 };
-                                        let mut payload = crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_SET_HDR_STATE {
-                                            header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
-                                                r#type: crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_DEVICE_INFO_SET_HDR_STATE,
-                                                size: std::mem::size_of::<crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_SET_HDR_STATE>() as u32,
-                                                adapterId: path.targetInfo.adapterId,
-                                                id: target_id,
-                                            },
-                                            enabled,
-                                        };
-                                        let res = unsafe { WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
-                                        if res != 0 {
-                                            eprintln!("Warning: DISPLAYCONFIG HDR set failed for target {}: {}", target_id, res);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
+                apply_gdi_state_to_ccd(&self.gdi, &fresh_ccd);
                 self.ccd = Some(fresh_ccd);
                 self.use_ccd = true;
             }

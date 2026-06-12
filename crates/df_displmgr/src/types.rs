@@ -161,6 +161,18 @@ impl OutputState {
     }
 }
 
+/// Plan for activating a previously inactive monitor.
+/// Used with `activate_with_topology_restore()`.
+#[derive(Debug, Clone, Default)]
+pub struct ActivationPlan {
+    /// Target position (x, y). If None, auto-positions right of rightmost active monitor.
+    pub position: Option<Point2D>,
+    /// Target resolution (width, height). If None, keeps hardware default.
+    pub resolution: Option<Extent2D>,
+    /// Target rotation. If None, keeps current rotation.
+    pub rotation: Option<DisplayRotation>,
+}
+
 impl Default for OutputState {
     fn default() -> Self {
         Self {
@@ -184,3 +196,4 @@ impl Default for OutputState {
         }
     }
 }
+

@@ -1,0 +1,14 @@
+/.vscode/
+target/
+**/target/
+.idea/
+*.log
+node_modules/
+dist/
+
+# Generated / temporary files
+*.bak
+*.tmp
+edid_dump.txt
+edid.json
+cli_test_report.md

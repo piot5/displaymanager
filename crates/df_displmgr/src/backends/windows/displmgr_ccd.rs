@@ -17,6 +17,14 @@ use self::displmgr_ccd_api::query_config_sync;
 use self::displmgr_ccd_editor::CcdOutputEditor;
 pub use self::displmgr_ccd_sys::*;
 
+// Re-export CCD-level display management functions from the API module
+pub use self::displmgr_ccd_api::{
+    DisplayTargetInfo,
+    query_all_display_targets,
+    find_display_target,
+    ccd_wake_display,
+};
+
 #[derive(Debug, Clone)]
 pub struct CcdTopology {
     pub data: CcdRawData,

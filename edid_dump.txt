@@ -1,10 +1,61 @@
---- Monitor Diagnostic Report ---
-Monitor 1: BenQ GL2450H
-  Interface: 4
-  Device Path: \\?\DISPLAY#BNQ78A7#5&290c49f7&0&UID4354#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
-Monitor 2: DTV
-  Interface: 5
-  Device Path: \\?\DISPLAY#TCL0000#5&290c49f7&0&UID4352#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
-Monitor 3: Artisr15.6Pro
-  Interface: 4
-  Device Path: \\?\DISPLAY#UGD1503#5&290c49f7&0&UID4356#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+╔══════════════════════════════════════════════════════════╗
+║              EDID Diagnostic Report                    ║
+╚══════════════════════════════════════════════════════════╝
+
+─── Monitor 1: BenQ GL2450H
+  Target ID:     4354
+  Active:        true
+  GDI Name:      \\.\DISPLAY1
+  Interface:     HDMI
+  Device Path:   \\?\DISPLAY#BNQ78A7#5&290c49f7&0&UID4354#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+  Topology:      1920x1080 @ (0,0) rotation=DISPLAYCONFIG_ROTATION(1)
+  EDID Model:    BenQ GL2450H
+  Manufacturer:  BNQ
+  Product Code:  30887
+  Serial:        21573
+  Manufactured:  week 33 / year 2013
+  Video Iface:   Digital { bit_depth: 8, interface_type: Unknown }
+  Modes:         1
+    1920x1080 @ 60 Hzp
+  DDC Brightness: 50/100
+  DDC Contrast:  75/100
+  DDC Input:     Unknown
+  DDC Power:     On
+
+─── Monitor 2: Artisr15.6Pro
+  Target ID:     4356
+  Active:        true
+  GDI Name:      \\.\DISPLAY2
+  Interface:     HDMI
+  Device Path:   \\?\DISPLAY#UGD1503#5&290c49f7&0&UID4356#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+  Topology:      1920x1080 @ (1920,0) rotation=DISPLAYCONFIG_ROTATION(1)
+  EDID Model:    Artisr15.6Pro
+  Manufacturer:  UGD
+  Product Code:  5379
+  Serial:        538968854
+  Manufactured:  week 14 / year 2020
+  Video Iface:   Digital { bit_depth: 8, interface_type: Unknown }
+  Modes:         1
+    1920x1080 @ 60 Hzp
+  DDC Brightness: 85/100
+  DDC Contrast:  43/100
+  DDC Input:     Unknown
+  DDC Power:     Unknown
+
+─── Monitor 3: DTV
+  Target ID:     4352
+  Active:        true
+  GDI Name:      \\.\DISPLAY3
+  Interface:     DisplayPort
+  Device Path:   \\?\DISPLAY#TCL0000#5&290c49f7&0&UID4352#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+  Topology:      1920x1080 @ (3840,0) rotation=DISPLAYCONFIG_ROTATION(1)
+  EDID Model:    DTV
+  Manufacturer:  TCL
+  Product Code:  0
+  Serial:        16843009
+  Manufactured:  week 1 / year 2012
+  Video Iface:   Digital { bit_depth: 8, interface_type: Unknown }
+  Modes:         2
+    1360x768 @ 60 Hzp
+    1280x720 @ 60 Hzp
+

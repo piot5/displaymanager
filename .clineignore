@@ -1,0 +1,56 @@
+# Rust build artifacts
+target/
+**/target/
+
+# Cargo files
+Cargo.lock
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Log files
+*.log
+
+# Generated files
+**/*.json
+**/edid_dump.json
+**/edid_dump.txt
+
+# Test artifacts
+#**/tests/
+#**/benches/
+
+# Binary and large files
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+*.dat
+
+# Temporary files
+tmp/
+temp/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Application specific
+apps/displaymanager_cli/target/
+apps/displaymanager_studio/target/
+crates/df_displmgr/target/
+crates/df_displmgr_info/target/
+crates/df_ddc/target/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+
+cli_test_report.md
+edid_dump.txt

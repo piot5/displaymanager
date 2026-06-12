@@ -33,3 +33,14 @@ pub struct DisplayDevice {
     pub info: String,
     pub inner: Box<dyn DdcControl>,
 }
+
+impl DisplayDevice {
+    pub fn get_capabilities(&self) -> Result<MonitorCapabilities, DdcError> {
+        self.inner.get_capabilities()
+    }
+
+    pub fn set_brightness(&self, value: u32) -> Result<(), DdcError> {
+        self.inner.set_vcp_feature(0x10, value)
+    }
+}
+

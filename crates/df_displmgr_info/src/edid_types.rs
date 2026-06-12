@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Physical capabilities of the monitor regarding brightness and contrast.
+/// Brightness and contrast range of the monitor.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MonitorCapabilities {
     pub brightness: u32,
@@ -9,7 +9,7 @@ pub struct MonitorCapabilities {
     pub contrast_max: u32,
 }
 
-/// Power saving modes of the monitor (VCP Code 0xD6).
+/// Power state reported through VCP code 0xD6.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PowerState {
     On = 0x01,
@@ -19,7 +19,7 @@ pub enum PowerState {
     Unknown = 0x00,
 }
 
-/// Layout positioning and topology metrics of the display device.
+/// Position, size and rotation of an active display output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorTopology {
     pub x: i32,
@@ -29,7 +29,7 @@ pub struct MonitorTopology {
     pub rotation: String,
 }
 
-/// Active input source connections defined by VESA MCCS specifications.
+/// Input source as defined by VESA MCCS.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum InputSource {
     AnalogVga = 0x01,
@@ -44,7 +44,7 @@ pub enum InputSource {
     Unknown = 0x00,
 }
 
-/// State of the display internal audio control.
+/// Mute state of the display's internal audio.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AudioMuteState {
     Muted = 0x01,
@@ -52,7 +52,7 @@ pub enum AudioMuteState {
     Unknown = 0x00,
 }
 
-/// Classification of digital input display interfaces.
+/// Digital input classification.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DigitalInterfaceType {
     Hdmi,
@@ -61,7 +61,7 @@ pub enum DigitalInterfaceType {
     Unknown,
 }
 
-/// Breakdown of video interface standards and properties extracted from EDID.
+/// Video interface details extracted from the EDID base block.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum VideoInterfaceInfo {
     Analog {
@@ -75,7 +75,7 @@ pub enum VideoInterfaceInfo {
     Unknown,
 }
 
-/// Display resolution modes and timing frequencies.
+/// A display mode reported by the monitor.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonitorMode {
     pub width: u32,
@@ -84,7 +84,7 @@ pub struct MonitorMode {
     pub interlaced: bool,
 }
 
-/// Color space chromaticity coordinates mapping panel capabilities.
+/// Chromaticity coordinates from the EDID base block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChromaticityCoordinates {
     pub red_x: f32,
@@ -97,26 +97,26 @@ pub struct ChromaticityCoordinates {
     pub white_y: f32,
 }
 
-/// Static HDR metadata parsed from CEA-861-G blocks (Panel EOTF capabilities).
+/// HDR static metadata parsed from CEA-861-G extension blocks.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HdrMetadata {
     pub supports_sdr_eotf: bool,
     pub supports_hdr_traditional: bool,
-    pub supports_smpte_st2084: bool, // HDR10 Standard
+    pub supports_smpte_st2084: bool, // HDR10
     pub supports_hlg: bool,          // Hybrid Log-Gamma
     pub max_luminance_cd_m2: Option<f32>,
     pub max_frame_average_luminance_cd_m2: Option<f32>,
     pub min_luminance_cd_m2: Option<f32>,
 }
 
-/// Physical audio capabilities of the display (Speaker infrastructure).
+/// Audio capabilities reported through CEA short audio descriptors.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AudioCapabilities {
     pub extra_audio_descriptors_count: usize,
-    pub short_audio_descriptors: Vec<String>, // Describes codecs such as LPCM, AC-3, etc.
+    pub short_audio_descriptors: Vec<String>,
 }
 
-/// Structured hardware metadata compiled from base and extension EDID blocks.
+/// Structured hardware metadata compiled from the EDID base and extension blocks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EdidData {
     pub model_name: String,
@@ -134,7 +134,7 @@ pub struct EdidData {
     pub audio_caps: AudioCapabilities,
 }
 
-/// Deep physical display telemetries collected continuously via DDC/CI commands.
+/// DDC/CI telemetry for a single display.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeepDdcStats {
     pub core_caps: MonitorCapabilities,
@@ -144,16 +144,15 @@ pub struct DeepDdcStats {
     pub audio_mute: AudioMuteState,
     pub color_gains: Option<(u32, u32, u32)>,
     pub horizontal_freq_hz: Option<u32>,
-    // FIX: Was named `vertical_freq_mhz` which is incorrect — DDC register 0xAE reports
-    // in units of 0.01 Hz (i.e. centihz), not MHz. Renamed to reflect the actual unit.
-    // Consumers must divide by 100 to obtain Hz (e.g. 6000 → 60.00 Hz).
+    // DDC register 0xAE reports vertical frequency in 0.01 Hz units (centihertz),
+    // not MHz. Consumers must divide by 100 to obtain Hz (e.g. 6000 -> 60.00 Hz).
     pub vertical_freq_centihz: Option<u32>,
     pub operating_hours: Option<u32>,
     pub osd_language_code: Option<u32>,
     pub panel_type_code: Option<u32>,
 }
 
-/// Standardized VESA Monitor Control Command Set (MCCS) control register addresses.
+/// VESA MCCS VCP code constants.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VcpCode {

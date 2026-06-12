@@ -200,7 +200,6 @@ impl UniversalTopology for WlrTopology {
 
         let state = WlrInternalState {
             manager: None,
-            color_manager: None,
             heads: Vec::new(),
             serial: 0,
             sync_tx: None,

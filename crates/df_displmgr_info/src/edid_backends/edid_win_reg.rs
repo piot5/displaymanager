@@ -25,8 +25,14 @@ impl EdidControl for WindowsRegBackend {
             return Err(EdidError::NotFound);
         };
 
-        // Normalize device path: strip kernel prefix, uppercase, split on '#' or '\'
-        let clean_id = device_id.trim_start_matches(r"\\?\").to_uppercase();
+        // Normalize device path: strip kernel NT device prefix (\\?\ or \\.\) and uppercase,
+        // then split on '#' or '\' to extract hardware ID and instance ID.
+        // The Registry API exposes device paths like:
+        //   \\?\DISPLAY#DELA123#5&1a2b3c4d&0&UID1#{<GUID>}
+        let clean_id = device_id
+            .trim_start_matches(r"\\.\")
+            .trim_start_matches(r"\\?\")
+            .to_uppercase();
         let parts: Vec<&str> = clean_id.split(|c| c == '#' || c == '\\').collect();
         if parts.len() < 3 {
             return Err(EdidError::NotFound);

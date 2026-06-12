@@ -4,24 +4,23 @@ version = "0.1.0"
 edition = "2021"
 authors = ["piot5"]
 description = "Display configuration interface for Windows (GDI/CCD) and Linux (Wayland/DRM)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+readme = "README.md"
+keywords = ["display", "monitor", "ddc", "topology", "ccd"]
+categories = ["os::windows-apis", "os::linux-apis", "command-line-utilities"]
 
 [dependencies]
-# Workspace-Inheritance für alle Abhängigkeiten
 anyhow = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-async-trait = { workspace = true }
-toml = { workspace = true }
-tokio = { workspace = true }
 clap = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
 
-# Interne Crates via Workspace (keine absoluten Pfade mehr)
 df_displmgr = { workspace = true }
 df_displmgr_info = { workspace = true }
 df_ddc = { workspace = true }
 
-# Plattformspezifische Dependencies via Workspace
 [target.'cfg(target_os = "linux")'.dependencies]
 wayland-client = { workspace = true }
 wayland-protocols = { workspace = true }

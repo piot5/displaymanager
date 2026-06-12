@@ -50,13 +50,13 @@ impl LinuxBackend {
         Ok(file)
     }
 
+    /// Calculates the DDC/CI checksum for a packet.
+    /// The checksum is the 2's complement of the sum of all data bytes,
+    /// such that the sum of all packet bytes (including checksum) equals 0 mod 256.
     #[inline(always)]
     fn calculate_checksum(&self, data: &[u8]) -> u8 {
-        let mut sum: u8 = 0x6E; 
-        for &b in data {
-            sum = sum.wrapping_add(b);
-        }
-        sum
+        let sum: u8 = data.iter().fold(0u8, |a, b| a.wrapping_add(*b));
+        (256u16 - sum as u16).wrapping_rem(256) as u8
     }
 }
 

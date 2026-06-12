@@ -24,6 +24,7 @@ pub mod displmgr_gdi_api;
 pub mod displmgr_gdi_sys;
 pub mod displmgr_gdi_editor;
 
+pub use self::displmgr_gdi_api::{force_activate_by_monitor_name, force_all};
 use self::displmgr_gdi_api::query_gdi_outputs;
 use self::displmgr_gdi_sys::to_wide;
 use self::displmgr_gdi_editor::GdiOutputEditor;
@@ -36,6 +37,40 @@ pub struct GdiTopology {
     /// Used as the base for computing the next mode during commit.
     pub(crate) saved_modes: HashMap<String, DEVMODEW>,
     pub(crate) target_primary_id: Option<String>,
+}
+
+// In crates\df_displmgr\src\backends\windows\displmgr_gdi.rs
+
+pub struct DisplayRestorer {
+    // Speichert: (Name, aktiv_status, DEVMODEW)
+    pub snapshot: Vec<(Vec<u16>, bool, DEVMODEW)>,
+}
+
+impl Drop for DisplayRestorer {
+    fn drop(&mut self) {
+        for (name_u16, was_active, old_dm) in &self.snapshot {
+            let pcw_name = PCWSTR(name_u16.as_ptr());
+            let mut reset_dm = *old_dm;
+
+            // Flags setzen, um Registry zu aktualisieren
+            let flags = CDS_UPDATEREGISTRY | CDS_NORESET;
+            
+            if !*was_active {
+                // Wenn es vorher inaktiv war, auf 0 setzen
+                reset_dm.dmPelsWidth = 0;
+                reset_dm.dmPelsHeight = 0;
+                reset_dm.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_POSITION;
+            }
+
+            unsafe {
+                let _ = ChangeDisplaySettingsExW(pcw_name, Some(&reset_dm), None, flags, None);
+            }
+        }
+        // Finaler Flush nach allen Restores
+        unsafe {
+            let _ = ChangeDisplaySettingsExW(None, None, None, CDS_TYPE(0), None);
+        }
+    }
 }
 
 impl fmt::Debug for GdiTopology {

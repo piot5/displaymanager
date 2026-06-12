@@ -5,9 +5,7 @@ use serde::Serialize;
 use df_displmgr_info::{collect_monitor_data, MonitorDetails};
 use df_displmgr_info::edid_types::{VideoInterfaceInfo, DigitalInterfaceType};
 
-// =========================================================================
-// Serializable JSON Data Structures
-// =========================================================================
+// JSON data structures
 
 #[derive(Serialize)]
 struct JsonOutput {
@@ -100,9 +98,7 @@ struct DdcCiSchema {
     panel_type_code: Option<String>,
 }
 
-// =========================================================================
-// Formatter Core Logics (Mirrored from Text Module)
-// =========================================================================
+// Formatters (mirrored from edid_file_txt.rs)
 
 mod formatters {
     pub fn format_output_tech(tech_str: &str) -> String {
@@ -127,15 +123,15 @@ mod formatters {
 
     pub fn format_rotation(rot_str: &str) -> &'static str {
         if rot_str.contains("(1)") || rot_str.contains("IDENTITY") {
-            "0° (Landscape)"
+            "0 (Landscape)"
         } else if rot_str.contains("(2)") || rot_str.contains("90") {
-            "90° (Portrait)"
+            "90 (Portrait)"
         } else if rot_str.contains("(3)") || rot_str.contains("180") {
-            "180° (Inverted Landscape)"
+            "180 (Inverted Landscape)"
         } else if rot_str.contains("(4)") || rot_str.contains("270") {
-            "270° (Inverted Portrait)"
+            "270 (Inverted Portrait)"
         } else {
-            "0°"
+            "0"
         }
     }
 
@@ -147,10 +143,6 @@ mod formatters {
             .join(" ")
     }
 }
-
-// =========================================================================
-// Core Structural Mapping Transformation Pipeline
-// =========================================================================
 
 fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSchema {
     let friendly_name = formatters::clean_display_string(&monitor.friendly_name);
@@ -173,7 +165,7 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
     let hardware_identity_edid = monitor.edid.as_ref().map(|data| {
         let clean_model = formatters::clean_display_string(&data.model_name);
         let manufacturer = format!("{} (ID: {})", clean_model, data.manufacturer_id);
-        
+
         let interface = match &data.video_interface {
             VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
                 let type_str = match interface_type {
@@ -211,7 +203,7 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
             ));
         }
 
-        // If no established EDID timings were found, mirror the fallback from edid_file_txt.rs
+        // Fall back to the topology resolution when EDID timings are absent.
         if supported_display_modes.is_empty() {
             if let Some(topo) = &monitor.topology {
                 supported_display_modes.push(format!("Mode #1: {}x{} @ 60Hz", topo.width, topo.height));
@@ -225,13 +217,13 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
             if hdr.supports_hlg             { hdr_capabilities.push("Hybrid Log-Gamma (HLG)".to_string()); }
             if hdr.supports_hdr_traditional { hdr_capabilities.push("Traditional HDR".to_string()); }
             if let Some(v) = hdr.max_luminance_cd_m2 {
-                hdr_capabilities.push(format!("Max Luminance:  {:.0} cd/m²", v));
+                hdr_capabilities.push(format!("Max Luminance:  {:.0} cd/m^2", v));
             }
             if let Some(v) = hdr.max_frame_average_luminance_cd_m2 {
-                hdr_capabilities.push(format!("Max Avg Lum:    {:.0} cd/m²", v));
+                hdr_capabilities.push(format!("Max Avg Lum:    {:.0} cd/m^2", v));
             }
             if let Some(v) = hdr.min_luminance_cd_m2 {
-                hdr_capabilities.push(format!("Min Luminance:  {:.4} cd/m²", v));
+                hdr_capabilities.push(format!("Min Luminance:  {:.4} cd/m^2", v));
             }
         }
 
@@ -253,11 +245,11 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
     let ddc_ci_hardware_bus = if let Some(ddc) = &monitor.ddc_stats {
         let audio_volume = ddc.volume.as_ref().map(|v| format!("Current: {} / Max: {}", v.0, v.1));
         let rgb_hardware_gain = ddc.color_gains.as_ref().map(|(r, g, b)| format!("R:{} G:{} B:{}", r, g, b));
-        
-        // Frequenzskalierung exakt wie in edid_file_txt.rs (Hz zu kHz und centiHz zu Hz)
+
+        // Frequency scaling matches edid_file_txt.rs (Hz -> kHz, centiHz -> Hz).
         let horizontal_freq = ddc.horizontal_freq_hz.map(|h_freq| format!("{:.2} kHz", h_freq as f64 / 1000.0));
         let vertical_freq = ddc.vertical_freq_centihz.map(|v_freq| format!("{:.2} Hz", v_freq as f64 / 100.0));
-        
+
         let operating_time = ddc.operating_hours.map(|hours| format!("{} Hours", hours));
         let osd_language_code = ddc.osd_language_code.map(|lang| format!("0x{:X}", lang));
         let panel_type_code = ddc.panel_type_code.map(|panel| format!("0x{:X}", panel));
@@ -279,7 +271,7 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
         }
     } else {
         DdcCiSchema {
-            status: "Not available (Monitor inactive or DDC blocked)".to_string(),
+            status: "Not available (monitor inactive or DDC blocked)".to_string(),
             brightness: None,
             contrast: None,
             input_connection: None,
@@ -305,58 +297,54 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
     }
 }
 
-// =========================================================================
-// Serialization Engine Driver Management Execution Block
-// =========================================================================
-
 struct JsonDumper;
 
 impl JsonDumper {
     pub fn dump_to_json_file(filename: &str) {
-        println!("[System-Action] Initializing raw hardware telemetry scanning pipeline...");
-        
+        println!("Scanning monitors...");
+
         match collect_monitor_data() {
             Ok(monitors) => {
-                println!("[+] Query Successful: Discovered {} active display targets.", monitors.len());
-                println!("[System-Action] Executing structural JSON serialization via Serde Engine...");
-                
+                println!("Found {} display targets.", monitors.len());
+                println!("Serializing to JSON...");
+
                 let mut monitor_schemas = Vec::new();
                 for (idx, monitor) in monitors.iter().enumerate() {
                     monitor_schemas.push(transform_monitor_data(idx + 1, monitor));
                 }
 
-                let output_payload = JsonOutput {
-                    stream_type: "Hardware Diagnostic Storage Stream".to_string(),
+                let output = JsonOutput {
+                    stream_type: "monitor-dump".to_string(),
                     total_discovered_targets: monitors.len(),
                     monitors: monitor_schemas,
                 };
-                
-                match serde_json::to_string_pretty(&output_payload) {
+
+                match serde_json::to_string_pretty(&output) {
                     Ok(json_string) => {
                         let path = Path::new(filename);
                         match File::create(path) {
                             Ok(mut file) => {
                                 match file.write_all(json_string.as_bytes()) {
-                                    Ok(_) => println!("[+] SUCCESS: Structural hardware matrix securely written to '{}'", filename),
-                                    Err(e) => eprintln!("[-] IO Write Error: Failed to flush JSON payload to storage: {:?}", e),
+                                    Ok(_) => println!("Wrote JSON to '{}'.", filename),
+                                    Err(e) => eprintln!("Write failed: {:?}", e),
                                 }
                             }
-                            Err(e) => eprintln!("[-] IO Access Error: Target descriptor locked or invalid path: {:?}", e),
+                            Err(e) => eprintln!("Could not create '{}': {:?}", filename, e),
                         }
                     }
-                    Err(e) => eprintln!("[-] Serialization Fault: Object graph parsing failed: {:?}", e),
+                    Err(e) => eprintln!("Serialization failed: {:?}", e),
                 }
             }
             Err(e) => {
-                eprintln!("[-] Execution Fault: Hardware query aborted. Context: {:?}", e);
-                
+                eprintln!("Monitor query failed: {:?}", e);
+
                 let path = Path::new(filename);
                 if let Ok(mut file) = File::create(path) {
-                    let error_payload = format!(
-                        "{{\n  \"status\": \"error\",\n  \"message\": \"Failed to query monitor details\",\n  \"error_context\": \"{:?}\"\n}}", 
+                    let error_text = format!(
+                        "{{\n  \"status\": \"error\",\n  \"message\": \"Monitor query failed\",\n  \"error_context\": \"{:?}\"\n}}",
                         e
                     );
-                    let _ = file.write_all(error_payload.as_bytes());
+                    let _ = file.write_all(error_text.as_bytes());
                 }
             }
         }
