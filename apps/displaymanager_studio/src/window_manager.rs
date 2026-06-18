@@ -184,7 +184,7 @@ impl WindowManager {
         let s = slots.get_mut(&id).ok_or(WindowError::SlotMissing(id))?;
         unsafe {
             s.original_style = GetWindowLongW(hwnd, GWL_STYLE);
-            SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, s.anchor.0.0 as isize);
+            SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, s.anchor.0.0);
             s.attached_hwnd = Some(hwnd);
             s.status = HealthStatus::Attached;
         }

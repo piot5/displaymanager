@@ -6,6 +6,7 @@ use std::mem::size_of;
 /// EDID backend that locates the active path through the Windows CCD API
 /// and then delegates the actual EDID read to the registry backend.
 pub struct WindowsCcdBackend {
+    /// Device path for the CCD (Continuous Configuration Driver) interface.
     pub device_path: Option<String>,
 }
 

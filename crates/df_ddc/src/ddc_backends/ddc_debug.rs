@@ -4,12 +4,23 @@ use crate::ddc_types::VcpCode;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+/// Debug/mock DDC/CI backend for testing without hardware.
+///
+/// Simulates VCP register storage in a `HashMap`, allowing unit tests
+/// to verify DDC/CI logic without real monitor hardware.
 pub struct DebugBackend {
-    /// Simulated storage for VCP registers
+    /// Simulated storage for VCP registers.
     vcp_values: Mutex<HashMap<u8, u32>>,
 }
 
+impl Default for DebugBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DebugBackend {
+    /// Creates a new debug backend with default VCP values (brightness=50, contrast=80, power=on).
     pub fn new() -> Self {
         let mut initial_values = HashMap::new();
         

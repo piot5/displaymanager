@@ -13,12 +13,17 @@ use windows::Win32::Devices::Display as WinDisplay;
 
 // ── Editor struct ─────────────────────────────────────────────────────────────
 
+/// Mutable editor for staging CCD display configuration changes.
+///
+/// Implements [`OutputEditable`] to provide a builder-style API
+/// for modifying display properties before committing.
 pub struct CcdOutputEditor<'a> {
     pub(crate) topology:   &'a mut CcdTopology,
     pub(crate) target_id:  u32,
 }
 
 impl<'a> CcdOutputEditor<'a> {
+    /// Creates a new editor for the specified CCD target.
     pub fn new(topology: &'a mut CcdTopology, target_id: u32) -> Self {
         Self { topology, target_id }
     }

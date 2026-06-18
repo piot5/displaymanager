@@ -1,14 +1,34 @@
+//! GDI output editor implementing [`OutputEditable`] for the Windows GDI backend.
+//!
+//! Provides the [`GdiOutputEditor`] struct that stages display configuration
+//! changes in-memory. All mutations are flushed to hardware during
+//! [`UniversalTopology::commit`].
+
 use crate::backends::windows::displmgr_gdi::GdiTopology;
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::OutputEditable;
 use crate::types::{OutputState, DisplayId, Extent2D, Point2D, HdrState, HdrMode, DisplayRotation};
 
+/// Per-output editor for GDI-based display configuration.
+///
+/// Implements [`OutputEditable`] to provide a builder-style API
+/// for modifying display properties before committing. All changes
+/// are staged in the parent [`GdiTopology`] state and flushed
+/// atomically via [`UniversalTopology::commit`].
 pub struct GdiOutputEditor<'a> {
+    /// Reference to the parent GDI topology.
     topology: &'a mut GdiTopology,
+    /// The display identifier for the output being edited.
     target_id: String,
 }
 
 impl<'a> GdiOutputEditor<'a> {
+    /// Creates a new GDI output editor for the specified display.
+    ///
+    /// # Arguments
+    ///
+    /// * `topology` - Mutable reference to the parent GDI topology.
+    /// * `target_id` - The display identifier string (GDI device name).
     pub fn new(topology: &'a mut GdiTopology, target_id: String) -> Self {
         Self { topology, target_id }
     }

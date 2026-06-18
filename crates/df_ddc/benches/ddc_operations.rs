@@ -54,7 +54,7 @@ fn bench_hardware_io(c: &mut Criterion) {
             BenchmarkId::new("get_capabilities", &monitor_id), 
             monitor, 
             |b, m| {
-                b.iter(|| black_box(m.get_capabilities()))
+                b.iter(|| black_box(m.inner.get_capabilities()))
             }
         );
 
@@ -67,7 +67,7 @@ fn bench_hardware_io(c: &mut Criterion) {
                 b.iter(|| {
                     // Constant value of 70% to avoid extreme backlight flickering 
                     // during high-frequency benchmark iterations.
-                    black_box(m.set_brightness(70))
+                    black_box(m.inner.set_brightness(70))
                 })
             }
         );

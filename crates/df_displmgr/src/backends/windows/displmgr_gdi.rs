@@ -15,8 +15,11 @@ use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{OutputState, DisplayId, DisplayRotation};
 
+/// Low-level GDI API functions for display enumeration and mode-setting.
 pub mod displmgr_gdi_api;
+/// Win32 GDI system type helpers and flag constants.
 pub mod displmgr_gdi_sys;
+/// GDI output editor implementing [`OutputEditable`].
 pub mod displmgr_gdi_editor;
 
 pub use self::displmgr_gdi_api::{force_activate_by_monitor_name, force_all};
@@ -24,17 +27,44 @@ use self::displmgr_gdi_api::query_gdi_outputs;
 use self::displmgr_gdi_sys::to_wide;
 use self::displmgr_gdi_editor::GdiOutputEditor;
 
+/// Windows GDI (Graphics Device Interface) display topology backend.
+///
+/// This is the legacy fallback backend for Windows display management.
+/// It uses `EnumDisplayDevicesW` and `ChangeDisplaySettingsExW` to
+/// enumerate and configure displays. While less capable than the CCD
+/// backend (no atomic multi-monitor commits, no HDR path), it provides
+/// wider compatibility across all Windows versions.
+///
+/// # Lifecycle
+///
+/// 1. [`acquire`](Self::acquire) — Enumerate all GDI display devices
+///    and snapshot their current `DEVMODEW` configurations.
+/// 2. [`edit_output`](Self::edit_output) — Stage mutations via
+///    [`GdiOutputEditor`].
+/// 3. [`commit`](Self::commit) — Flush all staged changes to the
+///    Windows Registry and trigger a global display-mode reset.
 #[derive(Clone)]
 pub struct GdiTopology {
+    /// Map of GDI device names to their current output state.
     pub outputs: HashMap<String, OutputState>,
+    /// When `true`, changes are written to the Registry (`CDS_UPDATEREGISTRY`).
     pub persistence_enabled: bool,
     /// Raw DEVMODEW snapshots captured at acquisition time.
     /// Used as the base for computing the next mode during commit.
     pub(crate) saved_modes: HashMap<String, DEVMODEW>,
+    /// Optional target primary display identifier.
     pub(crate) target_primary_id: Option<String>,
 }
 
+/// RAII guard that restores all GDI display settings to their previous
+/// state when dropped.
+///
+/// Captures the current topology snapshot and reapplies it on drop,
+/// ensuring that temporary configuration changes are rolled back even
+/// if the caller panics or drops the restorer early.
 pub struct DisplayRestorer {
+    /// Vector of (wide_name, was_active, DEVMODEW) tuples captured
+    /// at construction time.
     // Stores: (name, was_active, DEVMODEW)
     pub snapshot: Vec<(Vec<u16>, bool, DEVMODEW)>,
 }
@@ -223,7 +253,7 @@ impl GdiTopology {
             .outputs
             .iter()
             .filter_map(|(id, state)| {
-                if !state.enabled && keep_active.map_or(true, |keep| &keep.0 != id) {
+                if !state.enabled && keep_active.is_none_or(|keep| &keep.0 != id) {
                     Some(id.clone())
                 } else {
                     None

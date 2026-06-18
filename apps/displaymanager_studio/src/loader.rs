@@ -82,7 +82,7 @@ impl FlowPackage {
         if let Some(data) = self.sounds.get(name) {
             let cursor = Cursor::new(data.clone());
             if let Ok(source) = rodio::Decoder::new(cursor) {
-                let _ = sink.append(source);
+                sink.append(source);
             }
         }
     }
@@ -95,6 +95,7 @@ pub struct AppState {
     pub contrast: u32,
     pub wallpaper_path: String,
     pub editor_content: String,
+    pub compile_status: String,
 }
 
 impl Default for AppState {
@@ -106,6 +107,7 @@ impl Default for AppState {
             contrast: 50,
             wallpaper_path: String::new(),
             editor_content: "{\n  \"logic\": {},\n  \"sequence\": []\n}".to_string(),
+            compile_status: String::new(),
         }
     }
 }

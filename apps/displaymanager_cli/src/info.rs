@@ -313,7 +313,7 @@ pub fn write_edid_report(path: &str) -> anyhow::Result<()> {
             report.push_str(&format!("  DDC Input:     {:?}\n", ddc.input_source));
             report.push_str(&format!("  DDC Power:     {:?}\n", ddc.power_state));
         }
-        report.push_str("\n");
+        report.push('\n');
     }
 
     File::create(Path::new(path))
@@ -521,7 +521,6 @@ fn format_output_tech(tech_str: &str) -> String {
 fn clean_display_string(input: &str) -> String {
     input
         .replace('\0', "")
-        .trim()
         .split_whitespace()
         .collect::<Vec<&str>>()
         .join(" ")
@@ -529,6 +528,7 @@ fn clean_display_string(input: &str) -> String {
 
 /// Rectangle overlap test (same algorithm as test_extend.rs and extended_tests.rs).
 /// Returns true if the two rectangles have a non-touching intersection area.
+#[allow(clippy::too_many_arguments)]
 fn rects_overlap(ax: i32, ay: i32, aw: u32, ah: u32,
                  bx: i32, by: i32, bw: u32, bh: u32) -> bool {
     let a_x2 = ax.saturating_add(aw as i32);

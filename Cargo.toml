@@ -4,7 +4,6 @@ members = [
     "crates/df_displmgr",
     "crates/df_displmgr_info",
     "apps/displaymanager_cli",
-    "apps/displaymanager_studio",
 ]
 resolver = "2"
 

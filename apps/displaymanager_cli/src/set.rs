@@ -137,7 +137,7 @@ fn apply_editor_inline(
                 println!("  HDR: {:?}", state);
             }
             if let Some(scale_val) = args.scale {
-                if scale_val < 0.25 || scale_val > 5.0 {
+                if !(0.25..=5.0).contains(&scale_val) {
                     bail!("--scale must be between 0.25 and 5.0, got {scale_val}");
                 }
                 editor.set_scale(scale_val)
@@ -250,10 +250,8 @@ fn verify_post_commit_extended(friendly_name: &str, mode: &str) -> Result<()> {
     if mode == "cloned" {
         if !overlaps.is_empty() { println!("  [OK] CLONED — shares geometry: {}", overlaps.join(", ")); }
         else { println!("  [WARN] CLONED requested but no overlap"); }
-    } else {
-        if overlaps.is_empty() { println!("  [OK] EXTENDED — unique geometry at ({}, {})", topo.x, topo.y); }
-        else { println!("  [WARN] EXTENDED but overlaps: {}", overlaps.join(", ")); }
-    }
+    } else if overlaps.is_empty() { println!("  [OK] EXTENDED — unique geometry at ({}, {})", topo.x, topo.y); }
+    else { println!("  [WARN] EXTENDED but overlaps: {}", overlaps.join(", ")); }
     Ok(())
 }
 
@@ -327,6 +325,7 @@ pub fn parse_rotation(s: &str) -> Result<DisplayRotation> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn rects_overlap(ax: i32, ay: i32, aw: u32, ah: u32, bx: i32, by: i32, bw: u32, bh: u32) -> bool {
     let a_x2 = ax.saturating_add(aw as i32);
     let a_y2 = ay.saturating_add(ah as i32);

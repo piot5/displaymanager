@@ -7,9 +7,14 @@ use crate::error::EdidError;
 const EDID_HEADER: [u8; 8] = [0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00];
 const BLOCK_SIZE: usize = 128;
 
+/// EDID binary data parser.
+///
+/// Parses raw EDID base blocks and extension blocks into structured
+/// [`EdidData`] with checksum validation.
 pub struct EdidParser;
 
 impl EdidParser {
+    /// Parses a raw EDID byte slice into structured [`EdidData`].
     pub fn parse(raw: &[u8]) -> Result<EdidData, EdidError> {
         if raw.len() < BLOCK_SIZE {
             return Err(EdidError::ParseError);
@@ -90,13 +95,15 @@ impl EdidParser {
                 match descriptor[3] {
                     0xFF => {
                         // Alphanumeric serial number string
+                        // EDID strings are null-padded; strip both null bytes and whitespace.
                         let sn = String::from_utf8_lossy(&descriptor[5..18]);
-                        serial_number_ascii = Some(sn.trim().to_string());
+                        serial_number_ascii = Some(sn.trim().trim_end_matches('\0').to_string());
                     }
                     0xFC => {
                         // Monitor name string
+                        // EDID strings are null-padded; strip both null bytes and whitespace.
                         let name = String::from_utf8_lossy(&descriptor[5..18]);
-                        model_name = name.trim().to_string();
+                        model_name = name.trim().trim_end_matches('\0').to_string();
                     }
                     _ => {}
                 }
@@ -202,23 +209,23 @@ impl EdidParser {
                                         hdr_caps.supports_smpte_st2084 = (eotf_byte & 0x04) != 0; // HDR10
                                         hdr_caps.supports_hlg = (eotf_byte & 0x08) != 0;          // Hybrid Log-Gamma
                                     }
-                                    if block_data.len() >= 4 {
-                                        let max_lum = block_data[3];
+                                    if block_data.len() >= 3 {
+                                        let max_lum = block_data[2];
                                         if max_lum > 0 {
                                             // Formula per VESA spec: 100 * 2^(max_lum / 32)
                                             hdr_caps.max_luminance_cd_m2 =
                                                 Some(100.0 * f32::powf(2.0, max_lum as f32 / 32.0));
                                         }
                                     }
-                                    if block_data.len() >= 5 {
-                                        let max_fa = block_data[4];
+                                    if block_data.len() >= 4 {
+                                        let max_fa = block_data[3];
                                         if max_fa > 0 {
                                             hdr_caps.max_frame_average_luminance_cd_m2 =
                                                 Some(100.0 * f32::powf(2.0, max_fa as f32 / 32.0));
                                         }
                                     }
-                                    if block_data.len() >= 6 {
-                                        let min_lum = block_data[5];
+                                    if block_data.len() >= 5 {
+                                        let min_lum = block_data[4];
                                         if min_lum > 0 {
                                             hdr_caps.min_luminance_cd_m2 = Some(
                                                 hdr_caps.max_luminance_cd_m2.unwrap_or(400.0)
@@ -389,7 +396,7 @@ mod tests {
     #[test]
     fn test_video_interface_digital_hdmi() {
         let mut raw = make_test_edid("V", [0x00, 0x00]);
-        raw[20] = 0x86; // digital, 10-bit, HDMI (type 2)
+        raw[20] = 0xB2; // digital (0x80), 10-bit (bits 6-4 = 3), HDMI (type 2)
         let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
         raw[127] = sum.wrapping_neg();
         let data = EdidParser::parse(&raw).unwrap();
@@ -405,7 +412,7 @@ mod tests {
     #[test]
     fn test_video_interface_analog() {
         let mut raw = make_test_edid("A", [0x00, 0x00]);
-        raw[20] = 0x0F; // analog, 0.714V, setup expected
+        raw[20] = 0x30; // analog (bit 7=0), 0.714V (bits 6-5=1), setup expected (bit 4=1)
         let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
         raw[127] = sum.wrapping_neg();
         let data = EdidParser::parse(&raw).unwrap();

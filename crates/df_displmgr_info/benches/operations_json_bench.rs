@@ -1,6 +1,5 @@
 // benches/operations_json_bench.rs
 use criterion::{criterion_group, criterion_main, Criterion, black_box, Throughput};
-use serde_json;
 use std::time::Duration;
 use df_displmgr_info::{
     MonitorDetails, 
@@ -59,7 +58,7 @@ fn generate_populated_details(count: usize) -> Vec<MonitorDetails> {
         is_active: true,
         output_tech: "DisplayPort".to_string(),
         gdi_name: format!("\\\\.\\DISPLAY{}", i + 1),
-        device_path: format!("\\\\?\\DISPLAY#DEL42C2#7&21a11b&0&UID256#{{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}}"),
+        device_path: "\\\\?\\DISPLAY#DEL42C2#7&21a11b&0&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}".to_string(),
         topology: Some(MonitorTopology { x: (i as i32) * 3840, y: 0, width: 3840, height: 2160, rotation: "Identity".to_string() }),
         edid: Some(mock_edid.clone()),
         ddc_stats: Some(mock_ddc.clone()),

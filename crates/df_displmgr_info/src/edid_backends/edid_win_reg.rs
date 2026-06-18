@@ -9,8 +9,14 @@ use windows::Win32::System::Registry::{
     KEY_READ, RegEnumKeyExW, REG_BINARY, REG_VALUE_TYPE,
 };
 
+/// Windows Registry-based EDID backend.
+///
+/// Reads raw EDID data from the Windows Registry by resolving
+/// device paths through HMONITOR handles or explicit device ID overrides.
 pub struct WindowsRegBackend {
+    /// Optional HMONITOR handle for device identification.
     pub handle: Option<isize>,
+    /// Optional device ID string override for direct registry lookup.
     pub device_id_override: Option<String>,
 }
 
@@ -33,7 +39,7 @@ impl EdidControl for WindowsRegBackend {
             .trim_start_matches(r"\\.\")
             .trim_start_matches(r"\\?\")
             .to_uppercase();
-        let parts: Vec<&str> = clean_id.split(|c| c == '#' || c == '\\').collect();
+        let parts: Vec<&str> = clean_id.split(['#', '\\']).collect();
         if parts.len() < 3 {
             return Err(EdidError::NotFound);
         }
@@ -365,8 +371,7 @@ impl WindowsRegBackend {
             mi.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
 
             if GetMonitorInfoW(HMONITOR(h_monitor), &mut mi.monitorInfo).as_bool() {
-                let mut dev = DISPLAY_DEVICEW::default();
-                dev.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as u32;
+                let mut dev = DISPLAY_DEVICEW { cb: std::mem::size_of::<DISPLAY_DEVICEW>() as u32, ..Default::default() };
 
                 let gdi_name = PCWSTR(mi.szDevice.as_ptr());
                 if EnumDisplayDevicesW(gdi_name, 0, &mut dev, 0).as_bool() {

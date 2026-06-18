@@ -160,7 +160,7 @@ pub struct WindowWrapper(pub HWND);
 
 impl HasWindowHandle for WindowWrapper {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        let handle = Win32WindowHandle::new(std::num::NonZeroIsize::new(self.0 .0 as isize).unwrap());
+        let handle = Win32WindowHandle::new(std::num::NonZeroIsize::new(self.0 .0).unwrap());
         unsafe { Ok(WindowHandle::borrow_raw(RawWindowHandle::Win32(handle))) }
     }
 }
@@ -296,17 +296,82 @@ pub unsafe extern "system" fn wnd_proc(h: HWND, m: u32, w: WPARAM, l: LPARAM) ->
 
 // UI function for the studio editor tab
 pub fn render_anim_editor(ui: &mut egui::Ui, state: &mut AppState) {
-    ui.heading("Anim Engine Studio");
+    ui.heading("Animation & Shader Editor");
     ui.separator();
-    ui.label("Echtzeit-Shader-Editor:");
-    
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.add(
-            egui::TextEdit::multiline(&mut state.editor_content)
-                .font(egui::TextStyle::Monospace)
-                .code_editor()
-                .desired_width(f32::INFINITY)
-                .lock_focus(true),
-        );
+
+    // Toolbar
+    ui.horizontal(|ui| {
+        if ui.button("▶ Compile & Preview").clicked() {
+            // Validate shader syntax (basic WGSL check)
+            let src = &state.editor_content;
+            let _errors: Vec<String> = Vec::new();
+
+            if src.is_empty() {
+                state.compile_status = "No shader source loaded".into();
+            } else if !src.contains("fn vs_main") {
+                state.compile_status = "Missing vertex entry point: fn vs_main()".into();
+            } else if !src.contains("fn fs_") {
+                state.compile_status = "Missing fragment entry point: fn fs_*()".into();
+            } else {
+                state.compile_status = format!("Shader OK ({} bytes) — ready for GPU upload", src.len());
+            }
+        }
+
+        if ui.button("📁 Load Shader").clicked() {
+            if let Some(path) = rfd::FileDialog::new()
+                .add_filter("WGSL Shader", &["wgsl", "glsl", "txt"])
+                .pick_file()
+            {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    state.editor_content = content;
+                    state.compile_status = format!("Loaded: {}", path.file_name().unwrap_or_default().to_string_lossy());
+                }
+            }
+        }
+
+        if ui.button("💾 Save Shader").clicked() {
+            if let Some(path) = rfd::FileDialog::new()
+                .add_filter("WGSL Shader", &["wgsl"])
+                .save_file()
+            {
+                let _ = std::fs::write(&path, &state.editor_content);
+                state.compile_status = format!("Saved: {}", path.file_name().unwrap_or_default().to_string_lossy());
+            }
+        }
+
+        ui.separator();
+
+        // Compile status
+        if state.compile_status.is_empty() {
+            ui.label("Ready");
+        } else if state.compile_status.contains("Error") || state.compile_status.contains("Missing") {
+            ui.colored_label(egui::Color32::RED, &state.compile_status);
+        } else {
+            ui.colored_label(egui::Color32::GREEN, &state.compile_status);
+        }
+    });
+
+    ui.separator();
+
+    // Editor area
+    let available_height = ui.available_height() - 60.0;
+    egui::ScrollArea::vertical()
+        .max_height(available_height)
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::multiline(&mut state.editor_content)
+                    .font(egui::TextStyle::Monospace)
+                    .code_editor()
+                    .desired_width(f32::INFINITY)
+                    .lock_focus(true),
+            );
+        });
+
+    // Status bar
+    ui.separator();
+    ui.horizontal(|ui| {
+        ui.label(format!("Lines: {}", state.editor_content.lines().count()));
+        ui.separator();
+        ui.label(format!("Chars: {}", state.editor_content.len()));
     });
 }

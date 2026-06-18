@@ -22,7 +22,7 @@ async fn main() -> df_displmgr::DisplayResult<()> {
         println!("  Name: {}", out.identity.monitor_name);
         println!(
             "  Resolution: {}x{} @ {} Hz",
-            out.mode.width, out.mode.height, out.mode.refresh_rate_hz
+            out.geometry.size.width, out.geometry.size.height, out.refresh_rate_hz()
         );
         println!(
             "  Position: ({}, {})",

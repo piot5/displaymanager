@@ -3,8 +3,8 @@ name = "df_displmgr"
 version = "0.1.0"
 edition = "2021"
 authors = ["piot5"]
-description = "A unified cross-platform display configuration manager for Windows (CCD) and Linux (wlroots/DRM)."
-license = "MIT"
+description = "A unified cross-platform display configuration manager for Windows (CCD/GDI) and Linux (Wayland/wlroots/DRM/KDE/udev)."
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/piot5/displaymanager"
 homepage = "https://github.com/piot5/displaymanager"
 documentation = "https://docs.rs/df_displmgr"
@@ -13,20 +13,26 @@ keywords = ["display", "monitor", "wayland", "drm", "hdr"]
 categories = ["os::windows-apis", "os::linux-apis", "gui"]
 exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
 
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 name = "df_displmgr"
 path = "src/lib.rs"
 
+[features]
+default = ["ctrl_center"]
+ctrl_center = []
+wgpu_types = []
+
 [dependencies]
-# Workspace-Inheritance nutzen
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true }
-log = { workspace = true }
-anyhow = { workspace = true }
-clap = { workspace = true }
 futures = { workspace = true }
 
 # Windows-Backends
@@ -39,6 +45,7 @@ wayland-client = { workspace = true }
 wayland-protocols = { workspace = true, features = ["client"] }
 wayland-protocols-wlr = { workspace = true, features = ["client"] }
 drm = { workspace = true }
+libc = "0.2"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

@@ -13,19 +13,19 @@ keywords = ["display", "monitor", "edid", "ddc", "telemetry"]
 categories = ["os::windows-apis", "os::linux-apis", "hardware-support"]
 exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
 
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 name = "df_displmgr_info"
 path = "src/lib.rs"
 
 [dependencies]
-# Workspace-Inheritance für alle Basis-Dependencies
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-anyhow = { workspace = true }
-log = { workspace = true }
-tokio = { workspace = true }
-base64 = { workspace = true }
 
 # Windows-Backends (erben Features vom Workspace)
 [target.'cfg(target_os = "windows")'.dependencies]

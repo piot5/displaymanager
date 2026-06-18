@@ -1,3 +1,11 @@
+//! Low-level GDI API functions for display enumeration (EnumDisplayDevicesW,
+//! EnumDisplaySettingsW) and mode-setting (ChangeDisplaySettingsExW).
+//!
+//! # Safety
+//!
+//! This module uses `unsafe` for Win32 FFI calls. All unsafe blocks are
+//! documented with SAFETY comments.
+
 use windows::core::PCWSTR;
 use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Devices::Display::{
@@ -158,8 +166,10 @@ pub fn query_gdi_outputs() -> DisplayResult<(HashMap<String, DEVMODEW>, Vec<Outp
 /// width/height and writes via `ChangeDisplaySettingsExW`.
 unsafe fn apply_resolution(gdi_name: &str, width: u32, height: u32) {
     let wide_name = to_wide(gdi_name);
-    let mut dm = DEVMODEW::default();
-    dm.dmSize = std::mem::size_of::<DEVMODEW>() as u16;
+    let mut dm = DEVMODEW {
+        dmSize: std::mem::size_of::<DEVMODEW>() as u16,
+        ..Default::default()
+    };
 
     if EnumDisplaySettingsW(PCWSTR(wide_name.as_ptr()), ENUM_REGISTRY_SETTINGS, &mut dm).as_bool() {
         dm.dmPelsWidth = width;

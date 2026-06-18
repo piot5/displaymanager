@@ -1,3 +1,9 @@
+//! Win32 GDI system type helpers, wide string conversion utilities,
+//! and flag constants for display mode enumeration and configuration.
+//!
+//! Provides [`to_wide`], [`from_wide`], [`create_empty_devmode`], and
+//! the [`gdi_flags`] module with staging/flush flag constants.
+
 use windows::Win32::Graphics::Gdi::{DEVMODEW, CDS_TYPE, CDS_UPDATEREGISTRY, CDS_NORESET, CDS_SET_PRIMARY};
 
 /// Converts a standard Rust string slice (`&str`) into a null-terminated

@@ -1,27 +1,56 @@
+//! Linux DDC/CI backend using raw I²C via `i2c-dev`.
+//!
+//! Communicates with DDC/CI-capable monitors over the I²C bus using
+//! raw `ioctl` calls. Implements the VESA DDC/CI packet protocol with
+//! checksum validation and retry logic.
+//!
+//! # Safety
+//!
+//! This module uses `unsafe` for `libc::ioctl` calls to set the I²C
+//! slave address. These calls are required because the Linux `i2c-dev`
+//! kernel interface exposes no safe userspace abstraction.
+//!
+//! All unsafe blocks are documented with safety comments explaining
+//! why the operation is sound in context.
+
 use crate::ddc_trait::DdcControl;
-use crate::error::{DdcError, AccessDeniedSnafu, CommunicationFailedSnafu, BackendNotAvailableSnafu, UnsupportedFeatureSnafu};
-use crate::ddc_types::MonitorCapabilities;
+use crate::error::DdcError;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use std::sync::Mutex; // Required for thread-safe hardware access
-use snafu::prelude::*;
 
+/// Linux DDC/CI backend using raw I²C via `i2c-dev`.
+///
+/// Wraps a handle to an I²C bus device (e.g., `/dev/i2c-3`) and
+/// communicates with monitors using the VESA DDC/CI packet protocol.
+/// A `Mutex` ensures that only one thread accesses the bus at a time,
+/// preventing command interleaving.
 pub struct LinuxBackend {
+    /// Path to the I²C device file (e.g., `/dev/i2c-3`).
     pub path: String,
-    // Global lock for this specific I2C bus to prevent command interleaving
-    lock: Mutex<()>, 
+    /// Global lock for this specific I²C bus to prevent command interleaving.
+    lock: Mutex<()>,
 }
 
 impl LinuxBackend {
+    /// Standard DDC/CI I²C address for monitors (0x37 shifted left 1).
     const DDC_I2C_ADDR: u16 = 0x37;
-    const HOST_ADDRESS: u8 = 0x51; 
-    
-    const WRITE_DELAY: Duration = Duration::from_millis(50); 
+    /// The DDC/CI host address byte (EDID emulation address).
+    const HOST_ADDRESS: u8 = 0x51;
+
+    /// Delay between write and read operations (milliseconds).
+    const WRITE_DELAY: Duration = Duration::from_millis(50);
+    /// Number of I²C read retry attempts before giving up.
     const RETRY_ATTEMPTS: usize = 3;
 
+    /// Creates a new Linux DDC/CI backend for the given I²C device path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The filesystem path of the I²C device (e.g., `/dev/i2c-3`).
     pub fn new(path: String) -> Self {
         Self {
             path,
@@ -29,30 +58,47 @@ impl LinuxBackend {
         }
     }
 
+    /// Opens the I²C device and sets the slave address for DDC/CI communication.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DdcError::AccessDenied`] if the process lacks permission
+    /// to open the device. Returns [`DdcError::BackendNotAvailable`] if
+    /// the device does not exist. Returns
+    /// [`DdcError::CommunicationFailed`] if the `I2C_SLAVE` ioctl fails.
     fn open_device(&self) -> Result<File, DdcError> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .open(&self.path)
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::PermissionDenied => AccessDeniedSnafu.build(),
-                _ => BackendNotAvailableSnafu { details: e.to_string() }.build(),
+                std::io::ErrorKind::PermissionDenied => DdcError::AccessDenied,
+                _ => DdcError::BackendNotAvailable {
+                    details: e.to_string(),
+                },
             })?;
 
+        // SAFETY: `libc::ioctl` with `I2C_SLAVE` is the standard way to
+        // set the I²C slave address on Linux. The file descriptor is
+        // valid because it was just opened above and is not yet shared.
+        // This ioctl is required by the `i2c-dev` kernel interface and
+        // there is no safe alternative in userspace.
         unsafe {
             const I2C_SLAVE: libc::c_ulong = 0x0703;
             if libc::ioctl(file.as_raw_fd(), I2C_SLAVE, Self::DDC_I2C_ADDR as libc::c_ulong) < 0 {
-                return CommunicationFailedSnafu {
+                return Err(DdcError::CommunicationFailed {
                     reason: format!("I2C_SLAVE ioctl failed for {}", self.path),
-                }.fail();
+                });
             }
         }
         Ok(file)
     }
 
     /// Calculates the DDC/CI checksum for a packet.
+    ///
     /// The checksum is the 2's complement of the sum of all data bytes,
-    /// such that the sum of all packet bytes (including checksum) equals 0 mod 256.
+    /// such that the sum of all packet bytes (including checksum) equals
+    /// 0 modulo 256.
     #[inline(always)]
     fn calculate_checksum(&self, data: &[u8]) -> u8 {
         let sum: u8 = data.iter().fold(0u8, |a, b| a.wrapping_add(*b));
@@ -61,10 +107,21 @@ impl LinuxBackend {
 }
 
 impl DdcControl for LinuxBackend {
+    /// Reads a VCP feature value from the monitor over I²C.
+    ///
+    /// Sends a DDC/CI request packet, waits for the monitor to respond,
+    /// and parses the VCP value from the response. Retries up to
+    /// [`RETRY_ATTEMPTS`](Self::RETRY_ATTEMPTS) times with exponential
+    /// backoff.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DdcError::CommunicationFailed`] if the I²C read times
+    /// out or the monitor's response is malformed.
     fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError> {
-        // Critical: Ensure only one thread communicates with the monitor at a time
+        // Ensure only one thread communicates with the monitor at a time
         let _guard = self.lock.lock().unwrap();
-        
+
         let mut file = self.open_device()?;
         let mut request = [Self::HOST_ADDRESS, 0x82, 0x01, code, 0x00];
         request[4] = self.calculate_checksum(&request[..4]);
@@ -72,7 +129,7 @@ impl DdcControl for LinuxBackend {
         for i in 0..Self::RETRY_ATTEMPTS {
             if file.write_all(&request).is_ok() {
                 thread::sleep(Self::WRITE_DELAY);
-                
+
                 let mut response = [0u8; 11];
                 if file.read_exact(&mut response).is_ok() {
                     if response[4] == code {
@@ -85,21 +142,39 @@ impl DdcControl for LinuxBackend {
             thread::sleep(Duration::from_millis(20 * (i as u64 + 1)));
         }
 
-        CommunicationFailedSnafu { 
-            reason: format!("I2C Read timeout on {}", self.path) 
-        }.fail()
+        Err(DdcError::CommunicationFailed {
+            reason: format!("I2C read timeout on {}", self.path),
+        })
     }
 
+    /// Writes a VCP feature value to the monitor over I²C.
+    ///
+    /// Sends a DDC/CI set-command packet and waits for the monitor to
+    /// process it before returning.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DdcError::CommunicationFailed`] if the I²C write fails.
     fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError> {
         let _guard = self.lock.lock().unwrap();
-        
+
         let mut file = self.open_device()?;
-        let mut request = [Self::HOST_ADDRESS, 0x84, 0x03, code, (value >> 8) as u8, value as u8, 0x00];
+        let mut request = [
+            Self::HOST_ADDRESS,
+            0x84,
+            0x03,
+            code,
+            (value >> 8) as u8,
+            value as u8,
+            0x00,
+        ];
         request[6] = self.calculate_checksum(&request[..6]);
 
-        file.write_all(&request).map_err(|e| CommunicationFailedSnafu {
-            reason: format!("I2C Write Error: {}", e),
-        }.build())?;
+        file.write_all(&request).map_err(|e| {
+            DdcError::CommunicationFailed {
+                reason: format!("I2C write error: {}", e),
+            }
+        })?;
 
         // Monitor needs time to process the command before the next one arrives
         thread::sleep(Self::WRITE_DELAY);

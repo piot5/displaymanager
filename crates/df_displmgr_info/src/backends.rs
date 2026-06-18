@@ -3,7 +3,9 @@
 //! This module abstracts away platform-specific complexity (unsafe Windows/Linux API calls)
 //! and provides a unified, safe interface for collecting monitor topology and statistics.
 
+/// Windows-specific display enumeration backend using CCD + GDI + Registry.
 #[cfg(target_os = "windows")]
+#[allow(unsafe_code)]
 pub mod windows;
 
 #[cfg(target_os = "linux")]
@@ -15,14 +17,23 @@ use crate::error::EdidError;
 /// Defined here to avoid circular imports with backends.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct MonitorDetails {
+    /// Unique target ID for the display output.
     pub target_id: u32,
+    /// Human-readable monitor name.
     pub friendly_name: String,
+    /// Whether the display is currently active.
     pub is_active: bool,
+    /// Output technology (e.g. "HDMI", "DisplayPort").
     pub output_tech: String,
+    /// GDI device name (Windows-specific).
     pub gdi_name: String,
+    /// Device path string for the display.
     pub device_path: String,
+    /// Display topology (position, size, rotation).
     pub topology: Option<crate::edid_types::MonitorTopology>,
+    /// Parsed EDID data.
     pub edid: Option<crate::edid_types::EdidData>,
+    /// DDC/CI telemetry and capabilities.
     pub ddc_stats: Option<crate::edid_types::DeepDdcStats>,
 }
 

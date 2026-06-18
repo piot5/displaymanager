@@ -1,25 +1,60 @@
+use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// Strongly-typed wrapper for a unique display output identifier.
+///
 /// Maps directly to operating system handle designations like GDI DeviceName,
 /// CCD Target ID, or Wayland Output Name.
 ///
 /// `Default` is derived so that structs containing `DisplayId` (e.g.
 /// `WlrOutputState`) can in turn derive `Default`.
+///
+/// # Examples
+///
+/// ```rust
+/// use df_displmgr::types::DisplayId;
+///
+/// let id = DisplayId("HDMI-1".to_string());
+/// assert_eq!(id.to_string(), "HDMI-1");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
          Serialize, Deserialize, Default)]
 pub struct DisplayId(pub String);
 
+impl fmt::Display for DisplayId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Strongly-typed wrapper for physical connector port designations
-/// (e.g., "DP-1", "HDMI-A-1").
+/// (e.g., `"DP-1"`, `"HDMI-A-1"`).
+///
+/// Connector IDs are assigned by the kernel's DRM subsystem or the Wayland
+/// compositor and remain stable across reboots for a given physical port.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
          Serialize, Deserialize, Default)]
 pub struct ConnectorId(pub String);
 
-/// Strongly-typed wrapper for the underlying GPU / adapter handle (e.g., LUID).
+impl fmt::Display for ConnectorId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Strongly-typed wrapper for the underlying GPU / adapter handle.
+///
+/// On Windows this maps to the adapter LUID; on Linux it represents the
+/// DRM card path (e.g., `"/dev/dri/card0"`).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
          Serialize, Deserialize, Default)]
 pub struct AdapterId(pub String);
+
+impl fmt::Display for AdapterId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Hardware identity descriptor containing immutable hardware properties
 /// and persistent session tokens.

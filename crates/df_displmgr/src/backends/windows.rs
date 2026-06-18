@@ -13,7 +13,9 @@ use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{OutputState, DisplayId, Extent2D, Point2D, HdrState};
 
+/// CCD (Continuous Configuration Driver) backend for advanced display topology.
 pub mod displmgr_ccd;
+/// GDI backend for legacy display configuration.
 pub mod displmgr_gdi;
 
 use self::displmgr_ccd::CcdTopology;
@@ -202,7 +204,7 @@ pub async fn activate_display(
 fn apply_gdi_state_to_ccd(gdi: &GdiTopology, fresh_ccd: &CcdTopology) {
     use crate::backends::windows::displmgr_ccd::displmgr_ccd_sys as ccd_sys;
 
-    for (_gdi_name, gdi_state) in &gdi.outputs {
+    for gdi_state in gdi.outputs.values() {
         let Some(ref hid) = gdi_state.identity.hardware_uuid else { continue };
         let Ok(target_id) = hid.parse::<u32>() else { continue };
 

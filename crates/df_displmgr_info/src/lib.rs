@@ -14,7 +14,7 @@
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let monitors = collect_monitor_data()?;
 //!     for m in &monitors {
-//!         println!("{} — {} {}", m.target_id, m.manufacturer, m.model);
+//!         println!("{} — {} (active: {})", m.target_id, m.friendly_name, m.is_active);
 //!     }
 //!     Ok(())
 //! }
@@ -36,10 +36,18 @@
 //! Licensed under either of [MIT](../LICENSE-MIT) or [Apache-2.0](../LICENSE-APACHE)
 //! at your option.
 
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
+
+/// EDID and DDC/CI type definitions for display hardware.
 pub mod edid_types;
-pub mod edid_trait;
+/// Platform-specific EDID backend implementations.
 pub mod edid_backends;
+/// Trait definitions for EDID data retrieval.
+pub mod edid_trait;
+/// EDID binary data parser.
 pub mod edid_parser;
+/// Error types for EDID operations.
 pub mod error;
 pub mod backends;
 

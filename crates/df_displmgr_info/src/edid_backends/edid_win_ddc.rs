@@ -7,8 +7,9 @@ use windows::Win32::Devices::Display::{
     PHYSICAL_MONITOR, GetMonitorBrightness, GetMonitorContrast,
 };
 
-/// Backend implementing DDC/CI commands to extract deep physical display telemetries.
+/// DDC/CI backend for querying deep hardware telemetry via Win32 Monitor Configuration API.
 pub struct WindowsDdcBackend {
+    /// HMONITOR handle for the display device.
     pub h_monitor: isize,
 }
 

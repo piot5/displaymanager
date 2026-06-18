@@ -210,7 +210,7 @@ fn bench_hardware_io(c: &mut Criterion) {
     #[cfg(target_os = "windows")]
     {
         let display_name = to_wide("\\\\.\\DISPLAY1");
-        let mut dev_mode = DEVMODEW {
+        let dev_mode = DEVMODEW {
             dmSize: std::mem::size_of::<DEVMODEW>() as u16,
             ..Default::default()
         };
@@ -220,7 +220,7 @@ fn bench_hardware_io(c: &mut Criterion) {
                 let status = unsafe {
                     ChangeDisplaySettingsExW(
                         PCWSTR(display_name.as_ptr()),
-                        Some(black_box(&mut dev_mode)),
+                        Some(black_box(&dev_mode)),
                         None,
                         CDS_UPDATEREGISTRY | CDS_NORESET,
                         None,

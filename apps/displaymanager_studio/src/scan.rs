@@ -27,7 +27,9 @@ pub struct MonitorDetails {
 #[derive(Debug, Serialize, Clone)]
 pub struct DdcData {
     pub brightness: (u32, u32, u32),
-    pub contrast: Option<(u32, u32, u32)>,
+    pub contrast: (u32, u32, u32),
+pub input_source: df_displmgr_info::edid_types::InputSource,
+pub power_state: df_displmgr_info::edid_types::PowerState,
 }
 
 /// Collects comprehensive monitor data from the library and adapts it to studio format.
@@ -48,12 +50,14 @@ pub fn collect_monitor_data() -> Result<Vec<MonitorDetails>> {
                 (0, 0, 0, 0, "Unknown".to_string())
             };
             
-            let ddc_stats = lib_mon.ddc_stats.as_ref().map(|deep_stats| {
-                DdcData {
-                    brightness: (0, deep_stats.core_caps.brightness, deep_stats.core_caps.brightness_max),
-                    contrast: Some((0, deep_stats.core_caps.contrast, deep_stats.core_caps.contrast_max)),
-                }
-            });
+let ddc_stats = lib_mon.ddc_stats.as_ref().map(|deep_stats| {
+    DdcData {
+        brightness: (0, deep_stats.core_caps.brightness, deep_stats.core_caps.brightness_max),
+        contrast: (0, deep_stats.core_caps.contrast, deep_stats.core_caps.contrast_max),
+        input_source: deep_stats.input_source,
+        power_state: deep_stats.power_state,
+    }
+});
             
             MonitorDetails {
                 target_id: lib_mon.target_id,

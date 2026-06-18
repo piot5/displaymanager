@@ -1,0 +1,30 @@
+Binary Files Summary - DisplayManager Crates
+
+=== df_ddc crate ===
+Binary files:
+- df_ddc/src/bin/ddc_mgr.rs
+
+=== df_displmgr crate ===
+Binary files:
+- df_displmgr/src/bin/displmgr.rs
+- df_displmgr/src/bin/id.rs
+
+=== df_displmgr_info crate ===
+Binary files:
+- df_displmgr_info/src/bin/edid_file_json.rs
+- df_displmgr_info/src/bin/edid_file_txt.rs
+
+   - src/bin/edid_file_txt.rs (EDID data exporter to text format)
+
+4. Examples directory binaries:
+
+df_ddc examples:
+   - examples/control_monitor.rs (Example for controlling monitors via DDC)
+
+df_displmgr examples:
+   - examples/list_outputs.rs (Example for listing display outputs)
+
+df_displmgr_info examples:
+   - examples/dump_edid.rs (Example for dumping EDID data)
+
+All binary files are located in the 'src/bin/' directories of their respective crates, with example binaries in the 'examples/' directories.

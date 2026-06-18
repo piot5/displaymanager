@@ -9,8 +9,14 @@ use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{UniversalTopology, OutputEditable};
 use crate::types::{OutputState, HdrState, HdrMode, DisplayId};
 
+/// CCD API functions for querying and configuring display targets.
 pub mod displmgr_ccd_api;
+
+/// CCD system-level FFI types and constants.
+/// Low-level Win32 FFI types for CCD display configuration.
 pub mod displmgr_ccd_sys;
+
+/// CCD output editor for staging display configuration changes.
 pub mod displmgr_ccd_editor;
 
 use self::displmgr_ccd_api::query_config_sync;
@@ -25,13 +31,24 @@ pub use self::displmgr_ccd_api::{
     ccd_wake_display,
 };
 
+/// CCD (Connecting and Configuring Displays) topology implementation.
+///
+/// This is the modern Windows display management backend that uses the
+/// `SetDisplayConfig` / `QueryDisplayConfig` API for flicker-free,
+/// atomic display configuration changes.
 #[derive(Debug, Clone)]
 pub struct CcdTopology {
+    /// Raw CCD data including display paths and modes.
     pub data: CcdRawData,
+    /// Snapshot of all display outputs as reported by the CCD subsystem.
     pub outputs: Vec<OutputState>,
+    /// Whether changes should be persisted to the Windows Registry.
     pub persist: bool,
+    /// Staged DPI scale factors keyed by target ID.
     pub(crate) staged_scales: HashMap<u32, i32>,
+    /// Staged HDR state and mode keyed by target ID.
     pub(crate) staged_hdr: HashMap<u32, (HdrState, HdrMode)>,
+    /// Whether any output has been modified since the last commit.
     pub(crate) dirty: bool,
 }
 

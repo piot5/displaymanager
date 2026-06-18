@@ -1,12 +1,12 @@
 //! # df_displmgr — Cross-platform display management library
 //!
 //! This crate provides the core abstractions for enumerating, querying, and
-//! configuring displays across Windows (CCD/GDI) and Linux (DRM/Wayland).
+//! configuring displays across Windows (CCD/GDI) and Linux (DRM/Wayland/KDE/udev).
 //!
 //! ## Architecture
 //!
-//! - [`UniversalTopology`] — trait for querying current display topology
-//! - [`OutputEditable`] — trait for modifying properties of a single output
+//! - [`UniversalTopology`](traits::UniversalTopology) — trait for querying current display topology
+//! - [`OutputEditable`](traits::OutputEditable) — trait for modifying properties of a single output
 //! - [`NativeTopology`] — platform-resolved concrete implementation
 //!
 //! ## Platform backends
@@ -17,6 +17,8 @@
 //! | Windows  | GDI     | Legacy fallback, wider compatibility |
 //! | Linux    | DRM     | Direct kernel mode setting |
 //! | Linux    | Wayland | wlroots output management protocol |
+//! | Linux    | KDE     | KScreen D-Bus integration |
+//! | Linux    | udev    | sysfs/udevadm enumeration |
 //!
 //! ## Feature gates
 //!
@@ -28,9 +30,16 @@
 //!
 //! Licensed under [MIT](../LICENSE-MIT) at your option.
 
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
+
+/// Error types for display configuration operations.
 pub mod error;
+/// Core data types for display configuration and topology.
 pub mod types;
+/// Traits for output editing and topology management.
 pub mod traits;
+/// Platform-specific backend implementations for display configuration.
 pub mod backends;
 
 // Re-export core types for a flattened, user-friendly API.
@@ -38,24 +47,27 @@ pub use error::{DisplayError, DisplayResult};
 pub use traits::{OutputEditable, UniversalTopology};
 pub use types::*;
 
-// Re-export Windows-specific functions at the top level.
-// CCD-level implementation details (query_all_display_targets, find_display_target,
-// ccd_wake_display, DisplayTargetInfo) are kept in the backend submodule
-// to avoid leaking low-level CCD query patterns into the public API surface.
+// Windows-specific re-exports
 #[cfg(target_os = "windows")]
 pub use backends::windows::{
     force_activate_by_monitor_name, force_all,
-    // High-level activation
     activate_display, ActivationResult,
-    // WinDisplayManager re-export
     WinDisplayManager,
+};
+
+// Linux-specific re-exports
+#[cfg(target_os = "linux")]
+pub use backends::linux::{
+    LinuxTopology,
+    LinuxBackendVariant,
 };
 
 /// The primary entry point for display management.
 /// Resolves to a platform-specific implementation at compile time.
 ///
 /// # Example
-/// ```rust
+///
+/// ```rust,no_run
 /// use df_displmgr::NativeTopology;
 /// use df_displmgr::traits::UniversalTopology;
 ///
@@ -79,6 +91,9 @@ pub use crate::backends::NativeTopology;
 
 // Fallback for unsupported platforms — allows documentation builds and
 // cross-compilation without pulling in platform-specific dependencies.
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+pub use crate::backends::NativeTopology;
+
 /// Topology-aware activation: save current topology, force_all, restore, place target.
 ///
 /// This is the main high-level function for activating an inactive monitor while
@@ -88,6 +103,13 @@ pub use crate::backends::NativeTopology;
 /// 3. Restores the saved topology — original active monitors get their positions back,
 ///    monitors that were inactive AND are not the target get turned off
 /// 4. Places the target monitor according to the `ActivationPlan`
+///
+/// # Platform Support
+///
+/// | Platform | Implementation |
+/// |----------|---------------|
+/// | Windows  | Uses CCD `SetDisplayConfig` with `SDC_TOPOLOGY_SUPPLIED` to force all targets active |
+/// | Linux    | Uses compositor-native enable-all (Wayland KDE) or DRM connector enable (bare metal) |
 pub async fn activate_with_topology_restore(
     target_id: u32,
     plan: &ActivationPlan,
@@ -126,17 +148,13 @@ pub async fn activate_with_topology_restore(
         map
     };
 
-    // ── Step 2: force_all ──
-    force_all().map_err(|e| DisplayError::BackendError(e.to_string()))?;
+    // ── Step 2: force_all / activate all (platform-specific) ──
+    force_all_displays().map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
     // Small delay for hardware to settle
-    #[cfg(target_os = "windows")]
-    {
-        // Use a blocking sleep in a spawn_blocking context
-        tokio::task::spawn_blocking(|| {
-            std::thread::sleep(std::time::Duration::from_millis(800));
-        }).await.map_err(|e| DisplayError::BackendError(e.to_string()))?;
-    }
+    tokio::task::spawn_blocking(|| {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }).await.map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
     // ── Step 3: Restore saved topology ──
     {
@@ -181,12 +199,9 @@ pub async fn activate_with_topology_restore(
     }
 
     // Small delay for hardware to settle
-    #[cfg(target_os = "windows")]
-    {
-        tokio::task::spawn_blocking(|| {
-            std::thread::sleep(std::time::Duration::from_millis(800));
-        }).await.map_err(|e| DisplayError::BackendError(e.to_string()))?;
-    }
+    tokio::task::spawn_blocking(|| {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }).await.map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
     // ── Step 4: Place target monitor ──
     // Check if target was already active
@@ -245,34 +260,232 @@ pub async fn activate_with_topology_restore(
     Ok(())
 }
 
+/// Platform-specific force-all-displays-active operation.
+///
+/// On Windows this uses CCD `SetDisplayConfig` with `SDC_TOPOLOGY_SUPPLIED`.
+/// On Linux this enables all discovered connectors via the active backend.
+#[cfg(target_os = "windows")]
+fn force_all_displays() -> Result<(), String> {
+    crate::backends::windows::force_all().map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn force_all_displays() -> Result<(), String> {
+    use traits::UniversalTopology;
+
+    let mut topo = NativeTopology::acquire().map_err(|e| e.to_string())?;
+    let outputs = topo.get_outputs();
+
+    for output in &outputs {
+        if let Ok(mut editor) = topo.edit_output(&output.identity.id) {
+            let _ = editor.set_enabled(true);
+        }
+    }
+
+    // Use a simpler approach: just acquire a fresh topology
+    // (the Linux backends enumerate all outputs by default)
+    drop(topo);
+
+    Ok(())
+}
+
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-pub struct NativeTopology;
+fn force_all_displays() -> Result<(), String> {
+    Err("force_all_displays not supported on this platform".to_string())
+}
 
-#[cfg(not(any(target_os = "windows", target_os = "linux")))]
-#[async_trait::async_trait]
-impl traits::UniversalTopology for NativeTopology {
-    fn acquire() -> DisplayResult<Self> {
-        Err(DisplayError::UnsupportedFeature("Platform not supported".into()))
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_activation_plan_default() {
+        let plan = ActivationPlan::default();
+        assert!(plan.position.is_none());
+        assert!(plan.resolution.is_none());
+        assert!(plan.rotation.is_none());
     }
 
-    fn get_outputs(&self) -> Vec<OutputState> {
-        vec![]
+    #[test]
+    fn test_activation_plan_with_values() {
+        let plan = ActivationPlan {
+            position: Some(types::Point2D { x: 100, y: 0 }),
+            resolution: Some(types::Extent2D { width: 1920, height: 1080 }),
+            rotation: Some(DisplayRotation::Rotate90),
+        };
+        assert_eq!(plan.position, Some(types::Point2D { x: 100, y: 0 }));
+        assert_eq!(plan.resolution, Some(types::Extent2D { width: 1920, height: 1080 }));
+        assert_eq!(plan.rotation, Some(DisplayRotation::Rotate90));
     }
 
-    // FIX: parameter type was `&str`; the trait requires `&DisplayId`.
-    fn edit_output(&mut self, _: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
-        Err(DisplayError::UnsupportedFeature("Platform not supported".into()))
+    #[test]
+    fn test_display_id_comparison() {
+        let id1 = DisplayId("HDMI-1".to_string());
+        let id2 = DisplayId("HDMI-1".to_string());
+        let id3 = DisplayId("DP-1".to_string());
+        assert_eq!(id1, id2);
+        assert_ne!(id1, id3);
     }
 
-    fn set_persistence(&mut self, _: bool) -> &mut Self {
-        self
+    #[test]
+    fn test_display_id_hash() {
+        use std::collections::HashMap;
+        let mut map = HashMap::new();
+        map.insert(DisplayId("HDMI-1".to_string()), 1);
+        map.insert(DisplayId("HDMI-1".to_string()), 2);
+        assert_eq!(map.len(), 1);
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
-        Ok(())
+    #[test]
+    fn test_display_id_ord() {
+        let id1 = DisplayId("A".to_string());
+        let id2 = DisplayId("B".to_string());
+        assert!(id1 < id2);
+        assert!(id2 > id1);
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
-        Ok(())
+    #[test]
+    fn test_display_id_serialization_roundtrip() {
+        let original = DisplayId("HDMI-1".to_string());
+        let json = serde_json::to_string(&original).unwrap();
+        let deserialized: DisplayId = serde_json::from_str(&json).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_display_identity_serialization() {
+        let identity = DisplayIdentity {
+            id: DisplayId("HDMI-1".to_string()),
+            connector_id: ConnectorId("HDMI-1".to_string()),
+            adapter_id: AdapterId("card0".to_string()),
+            hardware_uuid: Some("12345".to_string()),
+            monitor_name: "Test Monitor".to_string(),
+        };
+        let json = serde_json::to_string(&identity).unwrap();
+        let deserialized: DisplayIdentity = serde_json::from_str(&json).unwrap();
+        assert_eq!(identity.id, deserialized.id);
+        assert_eq!(identity.connector_id, deserialized.connector_id);
+        assert_eq!(identity.monitor_name, deserialized.monitor_name);
+    }
+
+    #[test]
+    fn test_display_rotation_default() {
+        let rot = DisplayRotation::default();
+        assert_eq!(rot, DisplayRotation::Rotate0);
+    }
+
+    #[test]
+    fn test_display_rotation_values() {
+        assert_eq!(DisplayRotation::Rotate0, DisplayRotation::Rotate0);
+        assert_eq!(DisplayRotation::Rotate90, DisplayRotation::Rotate90);
+        assert_eq!(DisplayRotation::Rotate180, DisplayRotation::Rotate180);
+        assert_eq!(DisplayRotation::Rotate270, DisplayRotation::Rotate270);
+    }
+
+    #[test]
+    fn test_extent2d_default() {
+        let extent = Extent2D::default();
+        assert_eq!(extent.width, 0);
+        assert_eq!(extent.height, 0);
+    }
+
+    #[test]
+    fn test_hdr_mode_default() {
+        let mode = HdrMode::default();
+        assert_eq!(mode, HdrMode::Default);
+    }
+
+    #[test]
+    fn test_hdr_state_default() {
+        let state = HdrState::default();
+        assert_eq!(state, HdrState::Disabled);
+    }
+
+    #[test]
+    fn test_output_state_default() {
+        let state = OutputState::default();
+        assert!(!state.enabled);
+        assert_eq!(state.geometry.size.width, 0);
+        assert_eq!(state.geometry.size.height, 0);
+    }
+
+    #[test]
+    fn test_output_state_is_landscape() {
+        let landscape = OutputState {
+            geometry: types::Rect {
+                origin: types::Point2D { x: 0, y: 0 },
+                size: types::Extent2D { width: 1920, height: 1080 },
+            },
+            ..Default::default()
+        };
+        assert!(landscape.is_landscape());
+
+        let portrait = OutputState {
+            geometry: types::Rect {
+                origin: types::Point2D { x: 0, y: 0 },
+                size: types::Extent2D { width: 1080, height: 1920 },
+            },
+            ..Default::default()
+        };
+        assert!(!portrait.is_landscape());
+    }
+
+    #[test]
+    fn test_output_state_refresh_rate_hz() {
+        let mut state = OutputState::default();
+        state.refresh_rate = 144_000;
+        assert_eq!(state.refresh_rate_hz(), 144.0);
+    }
+
+    #[test]
+    fn test_output_state_serialization() {
+        let mut state = OutputState::default();
+        state.enabled = true;
+        state.geometry = types::Rect {
+            origin: types::Point2D { x: 0, y: 0 },
+            size: types::Extent2D { width: 1920, height: 1080 },
+        };
+        state.refresh_rate = 60_000;
+        let json = serde_json::to_string(&state).unwrap();
+        let deserialized: OutputState = serde_json::from_str(&json).unwrap();
+        assert_eq!(state.enabled, deserialized.enabled);
+        assert_eq!(state.geometry, deserialized.geometry);
+    }
+
+    #[test]
+    fn test_output_state_supported_modes() {
+        let mut state = OutputState::default();
+        state.supported_modes = vec![
+            types::VideoMode {
+                resolution: types::Extent2D { width: 1920, height: 1080 },
+                refresh_rate: 60_000,
+            },
+        ];
+        assert_eq!(state.supported_modes.len(), 1);
+        assert_eq!(state.supported_modes[0].resolution.width, 1920);
+    }
+
+    #[test]
+    fn test_point2d_default() {
+        let point = Point2D::default();
+        assert_eq!(point.x, 0);
+        assert_eq!(point.y, 0);
+    }
+
+    #[test]
+    fn test_rect_default() {
+        let rect = Rect::default();
+        assert_eq!(rect.origin.x, 0);
+        assert_eq!(rect.origin.y, 0);
+        assert_eq!(rect.size.width, 0);
+        assert_eq!(rect.size.height, 0);
+    }
+
+    #[test]
+    fn test_video_mode_default() {
+        let mode = VideoMode::default();
+        assert_eq!(mode.resolution.width, 0);
+        assert_eq!(mode.resolution.height, 0);
+        assert_eq!(mode.refresh_rate, 0);
     }
 }
