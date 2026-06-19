@@ -2,6 +2,7 @@
 name = "df_ddc"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 authors = ["piot5"]
 description = "DDC/CI monitor control backend."
 license = "MIT OR Apache-2.0"
@@ -28,7 +29,9 @@ path = "src/bin/ddc_mgr.rs"
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-clap = { version = "4.0", features = ["derive"] }
+log = { workspace = true }
+clap = { workspace = true }
+env_logger = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { workspace = true }

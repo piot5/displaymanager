@@ -2,8 +2,9 @@
 name = "df_displmgr_info"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 authors = ["piot5"]
-description = "Unified display management and hardware telemetry framework."
+description = "EDID parser and hardware telemetry extraction for display devices."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/piot5/displaymanager"
 homepage = "https://github.com/piot5/displaymanager"

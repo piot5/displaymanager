@@ -2,7 +2,7 @@
 
 Cross-platform display configuration toolkit for Windows (Windows CCD / GDI / DDC/CI)
 and Linux (Wayland / wlroots / DRM / I2C-DDC). Cargo workspace with three library
-crates and two applications.
+crates and one application.
 
 ## Members
 
@@ -11,15 +11,13 @@ crates and two applications.
 | `crates/df_ddc` | DDC/CI monitor control backend (brightness, contrast, input, power) |
 | `crates/df_displmgr` | Display topology abstraction (modes, position, rotation) |
 | `crates/df_displmgr_info` | EDID parser and hardware telemetry |
-| `apps/displaymanager_cli` | Command-line frontend (`flux-cli`) |
-| `apps/displaymanager_studio` | GUI (egui/eframe) with live wallpaper and animation editor |
+| `apps/displaymanager_cli` | Command-line frontend |
 
 ## Build
 
 ```bash
 cargo build --release
 cargo build -p displaymanager_cli --release
-cargo build -p displaymanager_studio --release
 ```
 
 Binaries land in `target/release/`.
@@ -27,7 +25,6 @@ Binaries land in `target/release/`.
 ## Architecture
 
 ```
-displaymanager_studio  ─┐
                         ├─► df_displmgr (topology) ─► df_ddc (DDC/CI)
 displaymanager_cli     ─┘                      ─► df_displmgr_info (EDID/telemetry)
 ```

@@ -2,6 +2,7 @@
 name = "df_displmgr"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 authors = ["piot5"]
 description = "A unified cross-platform display configuration manager for Windows (CCD/GDI) and Linux (Wayland/wlroots/DRM/KDE/udev)."
 license = "MIT OR Apache-2.0"

@@ -2,8 +2,10 @@
 name = "displaymanager_cli"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 authors = ["piot5"]
 description = "Display configuration interface for Windows (GDI/CCD) and Linux (Wayland/DRM)"
+documentation = "https://docs.rs/displaymanager_cli"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/piot5/displaymanager"
 homepage = "https://github.com/piot5/displaymanager"
