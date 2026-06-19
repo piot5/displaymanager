@@ -17,6 +17,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
+      - name: MSRV check
+        run: cargo +1.75.0 check --workspace --all-targets
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
