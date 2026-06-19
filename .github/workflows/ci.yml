@@ -34,8 +34,8 @@ jobs:
         with:
           path: target
           key: cargo-target-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+      - name: Install cargo-audit and llvm-cov
+        run: cargo install cargo-audit --locked && cargo install cargo-llvm-cov --locked
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy (all targets)
@@ -46,3 +46,5 @@ jobs:
         run: cargo test --workspace 2>&1
       - name: Test coverage (displaymanager_cli)
         run: cargo test -p displaymanager_cli 2>&1
+      - name: Coverage report
+        run: cargo llvm-cov --workspace --all-targets --codecov --output-dir coverage
