@@ -33,14 +33,14 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
-/// Error types for display configuration operations.
-pub mod error;
-/// Core data types for display configuration and topology.
-pub mod types;
-/// Traits for output editing and topology management.
-pub mod traits;
 /// Platform-specific backend implementations for display configuration.
 pub mod backends;
+/// Error types for display configuration operations.
+pub mod error;
+/// Traits for output editing and topology management.
+pub mod traits;
+/// Core data types for display configuration and topology.
+pub mod types;
 
 // Re-export core types for a flattened, user-friendly API.
 pub use error::{DisplayError, DisplayResult};
@@ -50,17 +50,13 @@ pub use types::*;
 // Windows-specific re-exports
 #[cfg(target_os = "windows")]
 pub use backends::windows::{
-    force_activate_by_monitor_name, force_all,
-    activate_display, ActivationResult,
+    activate_display, force_activate_by_monitor_name, force_all, ActivationResult,
     WinDisplayManager,
 };
 
 // Linux-specific re-exports
 #[cfg(target_os = "linux")]
-pub use backends::linux::{
-    LinuxTopology,
-    LinuxBackendVariant,
-};
+pub use backends::linux::{LinuxBackendVariant, LinuxTopology};
 
 /// The primary entry point for display management.
 /// Resolves to a platform-specific implementation at compile time.
@@ -154,7 +150,9 @@ pub async fn activate_with_topology_restore(
     // Small delay for hardware to settle
     tokio::task::spawn_blocking(|| {
         std::thread::sleep(std::time::Duration::from_millis(500));
-    }).await.map_err(|e| DisplayError::BackendError(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
     // ── Step 3: Restore saved topology ──
     {
@@ -194,18 +192,22 @@ pub async fn activate_with_topology_restore(
 
         topo.set_persistence(true);
         let _ = topo.validate().await;
-        topo.commit().await
+        topo.commit()
+            .await
             .map_err(|e| DisplayError::BackendError(e.to_string()))?;
     }
 
     // Small delay for hardware to settle
     tokio::task::spawn_blocking(|| {
         std::thread::sleep(std::time::Duration::from_millis(500));
-    }).await.map_err(|e| DisplayError::BackendError(e.to_string()))?;
+    })
+    .await
+    .map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
     // ── Step 4: Place target monitor ──
     // Check if target was already active
-    let was_active = saved.get(&target_id.to_string())
+    let was_active = saved
+        .get(&target_id.to_string())
         .map(|s| s.enabled)
         .unwrap_or(false);
 
@@ -220,7 +222,8 @@ pub async fn activate_with_topology_restore(
         None => {
             // Auto-position: right of rightmost active monitor
             let topo = NativeTopology::acquire()?;
-            let right_x = topo.get_outputs()
+            let right_x = topo
+                .get_outputs()
                 .iter()
                 .filter(|o| o.enabled)
                 .map(|o| o.geometry.origin.x + o.geometry.size.width as i32)
@@ -233,27 +236,33 @@ pub async fn activate_with_topology_restore(
     {
         let mut topo = NativeTopology::acquire()?;
         let did = DisplayId(target_id.to_string());
-        let mut editor = topo.edit_output(&did)
+        let mut editor = topo
+            .edit_output(&did)
             .map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
-        editor.set_enabled(true)
+        editor
+            .set_enabled(true)
             .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-        editor.set_position(pos)
+        editor
+            .set_position(pos)
             .map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
         if let Some(res) = plan.resolution {
-            editor.set_resolution(res)
+            editor
+                .set_resolution(res)
                 .map_err(|e| DisplayError::BackendError(e.to_string()))?;
         }
         if let Some(rot) = plan.rotation {
-            editor.set_rotation(rot)
+            editor
+                .set_rotation(rot)
                 .map_err(|e| DisplayError::BackendError(e.to_string()))?;
         }
 
         drop(editor);
         topo.set_persistence(true);
         let _ = topo.validate().await;
-        topo.commit().await
+        topo.commit()
+            .await
             .map_err(|e| DisplayError::BackendError(e.to_string()))?;
     }
 
@@ -310,11 +319,20 @@ mod tests {
     fn test_activation_plan_with_values() {
         let plan = ActivationPlan {
             position: Some(types::Point2D { x: 100, y: 0 }),
-            resolution: Some(types::Extent2D { width: 1920, height: 1080 }),
+            resolution: Some(types::Extent2D {
+                width: 1920,
+                height: 1080,
+            }),
             rotation: Some(DisplayRotation::Rotate90),
         };
         assert_eq!(plan.position, Some(types::Point2D { x: 100, y: 0 }));
-        assert_eq!(plan.resolution, Some(types::Extent2D { width: 1920, height: 1080 }));
+        assert_eq!(
+            plan.resolution,
+            Some(types::Extent2D {
+                width: 1920,
+                height: 1080
+            })
+        );
         assert_eq!(plan.rotation, Some(DisplayRotation::Rotate90));
     }
 
@@ -414,7 +432,10 @@ mod tests {
         let landscape = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             ..Default::default()
         };
@@ -423,7 +444,10 @@ mod tests {
         let portrait = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1080, height: 1920 },
+                size: types::Extent2D {
+                    width: 1080,
+                    height: 1920,
+                },
             },
             ..Default::default()
         };
@@ -443,7 +467,10 @@ mod tests {
         state.enabled = true;
         state.geometry = types::Rect {
             origin: types::Point2D { x: 0, y: 0 },
-            size: types::Extent2D { width: 1920, height: 1080 },
+            size: types::Extent2D {
+                width: 1920,
+                height: 1080,
+            },
         };
         state.refresh_rate = 60_000;
         let json = serde_json::to_string(&state).unwrap();
@@ -455,12 +482,13 @@ mod tests {
     #[test]
     fn test_output_state_supported_modes() {
         let mut state = OutputState::default();
-        state.supported_modes = vec![
-            types::VideoMode {
-                resolution: types::Extent2D { width: 1920, height: 1080 },
-                refresh_rate: 60_000,
+        state.supported_modes = vec![types::VideoMode {
+            resolution: types::Extent2D {
+                width: 1920,
+                height: 1080,
             },
-        ];
+            refresh_rate: 60_000,
+        }];
         assert_eq!(state.supported_modes.len(), 1);
         assert_eq!(state.supported_modes[0].resolution.width, 1920);
     }

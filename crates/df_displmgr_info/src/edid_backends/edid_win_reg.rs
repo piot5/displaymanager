@@ -2,11 +2,11 @@ use crate::edid_trait::EdidControl;
 use crate::error::EdidError;
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MONITORINFOEXW, HMONITOR, EnumDisplayDevicesW, DISPLAY_DEVICEW,
+    EnumDisplayDevicesW, GetMonitorInfoW, DISPLAY_DEVICEW, HMONITOR, MONITORINFOEXW,
 };
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE,
-    KEY_READ, RegEnumKeyExW, REG_BINARY, REG_VALUE_TYPE,
+    RegCloseKey, RegEnumKeyExW, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE,
+    KEY_READ, REG_BINARY, REG_VALUE_TYPE,
 };
 
 /// Windows Registry-based EDID backend.
@@ -15,7 +15,7 @@ use windows::Win32::System::Registry::{
 /// device paths through HMONITOR handles or explicit device ID overrides.
 pub struct WindowsRegBackend {
     /// Optional HMONITOR handle for device identification.
-    pub handle: Option<isize>,
+    pub handle: Option<*mut core::ffi::c_void>,
     /// Optional device ID string override for direct registry lookup.
     pub device_id_override: Option<String>,
 }
@@ -72,7 +72,13 @@ impl EdidControl for WindowsRegBackend {
         let sub_system_path = windows::core::HSTRING::from(base_path);
 
         if unsafe {
-            RegOpenKeyExW(HKEY_LOCAL_MACHINE, &sub_system_path, 0, KEY_READ, &mut hkey_base)
+            RegOpenKeyExW(
+                HKEY_LOCAL_MACHINE,
+                &sub_system_path,
+                0,
+                KEY_READ,
+                &mut hkey_base,
+            )
         }
         .is_ok()
         {
@@ -110,9 +116,7 @@ impl EdidControl for WindowsRegBackend {
                     // only falling back to the first available instance when inst_id is absent
                     // from the registry (e.g. after a driver reinstall changes the suffix).
                     let node_path = format!(r"{}\{}", base_path, current_hw_id);
-                    if let Ok(data) =
-                        self.scan_instances_for_edid(&node_path, inst_id)
-                    {
+                    if let Ok(data) = self.scan_instances_for_edid(&node_path, inst_id) {
                         let _ = unsafe { RegCloseKey(hkey_base) };
                         return Ok(data);
                     }
@@ -141,7 +145,13 @@ impl WindowsRegBackend {
         let class_hstring = windows::core::HSTRING::from(class_guid_path);
 
         if unsafe {
-            RegOpenKeyExW(HKEY_LOCAL_MACHINE, &class_hstring, 0, KEY_READ, &mut hkey_class)
+            RegOpenKeyExW(
+                HKEY_LOCAL_MACHINE,
+                &class_hstring,
+                0,
+                KEY_READ,
+                &mut hkey_class,
+            )
         }
         .is_err()
         {
@@ -171,8 +181,7 @@ impl WindowsRegBackend {
                 break;
             }
 
-            let entry_name =
-                String::from_utf16_lossy(&name_buffer[0..name_len as usize]);
+            let entry_name = String::from_utf16_lossy(&name_buffer[0..name_len as usize]);
             let sub_path = format!(r"{}\{}", class_guid_path, entry_name);
 
             // Check whether this class entry belongs to our hw_id by reading
@@ -198,10 +207,8 @@ impl WindowsRegBackend {
         let mut hkey = HKEY::default();
         let path_hstring = windows::core::HSTRING::from(sub_path);
 
-        if unsafe {
-            RegOpenKeyExW(HKEY_LOCAL_MACHINE, &path_hstring, 0, KEY_READ, &mut hkey)
-        }
-        .is_err()
+        if unsafe { RegOpenKeyExW(HKEY_LOCAL_MACHINE, &path_hstring, 0, KEY_READ, &mut hkey) }
+            .is_err()
         {
             return false;
         }
@@ -224,7 +231,14 @@ impl WindowsRegBackend {
         {
             let mut buf = vec![0u8; data_len as usize];
             if unsafe {
-                RegQueryValueExW(hkey, &value_name, None, None, Some(buf.as_mut_ptr()), Some(&mut data_len))
+                RegQueryValueExW(
+                    hkey,
+                    &value_name,
+                    None,
+                    None,
+                    Some(buf.as_mut_ptr()),
+                    Some(&mut data_len),
+                )
             }
             .is_ok()
             {
@@ -262,7 +276,13 @@ impl WindowsRegBackend {
         let node_hstring = windows::core::HSTRING::from(node_path);
 
         if unsafe {
-            RegOpenKeyExW(HKEY_LOCAL_MACHINE, &node_hstring, 0, KEY_READ, &mut hkey_node)
+            RegOpenKeyExW(
+                HKEY_LOCAL_MACHINE,
+                &node_hstring,
+                0,
+                KEY_READ,
+                &mut hkey_node,
+            )
         }
         .is_err()
         {
@@ -293,8 +313,7 @@ impl WindowsRegBackend {
                 break;
             }
 
-            let inst_name =
-                String::from_utf16_lossy(&inst_buffer[0..inst_len as usize]);
+            let inst_name = String::from_utf16_lossy(&inst_buffer[0..inst_len as usize]);
             let sub_path = format!(r"{}\{}\Device Parameters", node_path, inst_name);
 
             if let Ok(data) = self.read_registry(&sub_path) {
@@ -321,10 +340,8 @@ impl WindowsRegBackend {
         let mut hkey = HKEY::default();
         let registry_path = windows::core::HSTRING::from(path);
 
-        if unsafe {
-            RegOpenKeyExW(HKEY_LOCAL_MACHINE, &registry_path, 0, KEY_READ, &mut hkey)
-        }
-        .is_ok()
+        if unsafe { RegOpenKeyExW(HKEY_LOCAL_MACHINE, &registry_path, 0, KEY_READ, &mut hkey) }
+            .is_ok()
         {
             let value_name = windows::core::HSTRING::from("EDID");
             let mut value_type = REG_BINARY;
@@ -365,13 +382,19 @@ impl WindowsRegBackend {
     }
 
     /// Resolves an HMONITOR handle via GDI structures to determine its Device ID.
-    fn get_device_id_from_handle(&self, h_monitor: isize) -> Result<String, EdidError> {
+    fn get_device_id_from_handle(
+        &self,
+        h_monitor: *mut core::ffi::c_void,
+    ) -> Result<String, EdidError> {
         unsafe {
             let mut mi = MONITORINFOEXW::default();
             mi.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
 
             if GetMonitorInfoW(HMONITOR(h_monitor), &mut mi.monitorInfo).as_bool() {
-                let mut dev = DISPLAY_DEVICEW { cb: std::mem::size_of::<DISPLAY_DEVICEW>() as u32, ..Default::default() };
+                let mut dev = DISPLAY_DEVICEW {
+                    cb: std::mem::size_of::<DISPLAY_DEVICEW>() as u32,
+                    ..Default::default()
+                };
 
                 let gdi_name = PCWSTR(mi.szDevice.as_ptr());
                 if EnumDisplayDevicesW(gdi_name, 0, &mut dev, 0).as_bool() {

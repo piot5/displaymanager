@@ -96,4 +96,3 @@ pub struct SetArgs {
     #[arg(long = "verify-only")]
     pub verify_only: bool,
 }
-

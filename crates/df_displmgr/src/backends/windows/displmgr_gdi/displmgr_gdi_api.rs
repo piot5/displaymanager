@@ -6,26 +6,24 @@
 //! This module uses `unsafe` for Win32 FFI calls. All unsafe blocks are
 //! documented with SAFETY comments.
 
-use windows::core::PCWSTR;
-use windows::Win32::Graphics::Gdi::*;
-use windows::Win32::Devices::Display::{
-    DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_MODE_INFO,
-    GetDisplayConfigBufferSizes, QueryDisplayConfig, SetDisplayConfig,
-    QDC_ALL_PATHS,
-    SDC_APPLY, SDC_USE_SUPPLIED_DISPLAY_CONFIG, SDC_SAVE_TO_DATABASE,
-};
-use crate::error::{DisplayError, DisplayResult};
-use crate::types::{
-    OutputState, DisplayRotation, HdrState, HdrMode,
-    DisplayIdentity, DisplayId, ConnectorId, AdapterId,
-    Rect, Point2D, Extent2D,
-};
-use super::displmgr_gdi_sys::{from_wide, to_wide, create_empty_devmode};
-use std::collections::HashMap;
+use super::displmgr_gdi_sys::{create_empty_devmode, from_wide, to_wide};
 use crate::backends::windows::displmgr_ccd::displmgr_ccd_api::{
     ccd_wake_display, find_display_target,
 };
 use crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_PATH_ACTIVE;
+use crate::error::{DisplayError, DisplayResult};
+use crate::types::{
+    AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D, HdrMode,
+    HdrState, OutputState, Point2D, Rect,
+};
+use std::collections::HashMap;
+use windows::core::PCWSTR;
+use windows::Win32::Devices::Display::{
+    GetDisplayConfigBufferSizes, QueryDisplayConfig, SetDisplayConfig, DISPLAYCONFIG_MODE_INFO,
+    DISPLAYCONFIG_PATH_INFO, QDC_ALL_PATHS, SDC_APPLY, SDC_SAVE_TO_DATABASE,
+    SDC_USE_SUPPLIED_DISPLAY_CONFIG,
+};
+use windows::Win32::Graphics::Gdi::*;
 
 /// GDI device state flags
 const ATTACHED_TO_DESKTOP: u32 = 0x0000_0001;
@@ -138,10 +136,10 @@ pub fn query_gdi_outputs() -> DisplayResult<(HashMap<String, DEVMODEW>, Vec<Outp
                 },
                 refresh_rate: dev_mode.dmDisplayFrequency * 1000,
                 rotation: match orient {
-                    DMDO_90  => DisplayRotation::Rotate90,
+                    DMDO_90 => DisplayRotation::Rotate90,
                     DMDO_180 => DisplayRotation::Rotate180,
                     DMDO_270 => DisplayRotation::Rotate270,
-                    _        => DisplayRotation::Rotate0,
+                    _ => DisplayRotation::Rotate0,
                 },
                 enabled: (device.StateFlags & ATTACHED_TO_DESKTOP) != 0,
                 is_primary: (device.StateFlags & PRIMARY_DEVICE) != 0,
@@ -207,7 +205,9 @@ pub fn force_all() -> DisplayResult<()> {
         }
     }
 
-    unsafe { flush_display_settings(); }
+    unsafe {
+        flush_display_settings();
+    }
     Ok(())
 }
 
@@ -224,10 +224,9 @@ pub fn force_all() -> DisplayResult<()> {
 /// This avoids duplicating the CCD query logic that lives in `displmgr_ccd_api.rs`.
 pub fn force_activate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
     // Step 1: Find the target using the shared CCD API
-    let target = find_display_target(monitor_name)
-        .ok_or_else(|| DisplayError::BackendError(
-            format!("Monitor '{}' not found in CCD paths", monitor_name)
-        ))?;
+    let target = find_display_target(monitor_name).ok_or_else(|| {
+        DisplayError::BackendError(format!("Monitor '{}' not found in CCD paths", monitor_name))
+    })?;
 
     let target_id = target.target_id;
 
@@ -243,7 +242,9 @@ pub fn force_activate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
     }
 
     // Step 3: Flush GDI to apply
-    unsafe { flush_display_settings(); }
+    unsafe {
+        flush_display_settings();
+    }
     Ok(())
 }
 
@@ -251,10 +252,9 @@ pub fn force_activate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
 /// Delegates to the shared CCD API rather than duplicating query logic.
 pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
     // Find target via shared CCD API
-    let target = find_display_target(monitor_name)
-        .ok_or_else(|| DisplayError::BackendError(
-            format!("Monitor '{}' not found in CCD paths", monitor_name)
-        ))?;
+    let target = find_display_target(monitor_name).ok_or_else(|| {
+        DisplayError::BackendError(format!("Monitor '{}' not found in CCD paths", monitor_name))
+    })?;
 
     if !target.is_active {
         return Ok(()); // Already inactive
@@ -263,7 +263,9 @@ pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()>
     // Query all CCD paths, find the target, clear its ACTIVE flag
     unsafe {
         let (mut paths, modes) = query_ccd_paths()?;
-        let idx = paths.iter().position(|p| p.targetInfo.id == target.target_id)
+        let idx = paths
+            .iter()
+            .position(|p| p.targetInfo.id == target.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(target.target_id.to_string())))?;
 
         // Clear active flag and mode indices
@@ -274,9 +276,10 @@ pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()>
         let flags = SDC_APPLY | SDC_SAVE_TO_DATABASE;
         let st = SetDisplayConfig(Some(&paths), Some(&modes), flags);
         if st != 0 {
-            return Err(DisplayError::BackendError(
-                format!("SetDisplayConfig deactivate failed for target {}: 0x{:08X}", target.target_id, st as u32)
-            ));
+            return Err(DisplayError::BackendError(format!(
+                "SetDisplayConfig deactivate failed for target {}: 0x{:08X}",
+                target.target_id, st as u32
+            )));
         }
     }
     Ok(())
@@ -287,21 +290,36 @@ pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()>
 /// Queries all CCD paths (QDC_ALL_PATHS) and returns the raw buffers.
 /// Consolidates the GetDisplayConfigBufferSizes + QueryDisplayConfig
 /// pattern that was duplicated across multiple functions.
-unsafe fn query_ccd_paths() -> DisplayResult<(Vec<DISPLAYCONFIG_PATH_INFO>, Vec<DISPLAYCONFIG_MODE_INFO>)> {
+unsafe fn query_ccd_paths(
+) -> DisplayResult<(Vec<DISPLAYCONFIG_PATH_INFO>, Vec<DISPLAYCONFIG_MODE_INFO>)> {
     let mut path_count = 0u32;
     let mut mode_count = 0u32;
 
-    GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count)
-        .map_err(|e| DisplayError::BackendError(format!("GetDisplayConfigBufferSizes: {e}")))?;
+    let result = GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count);
+    if result.0 != 0 {
+        return Err(DisplayError::BackendError(format!(
+            "GetDisplayConfigBufferSizes failed: {}",
+            result.0
+        )));
+    }
 
     let mut paths = vec![DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
     let mut modes = vec![DISPLAYCONFIG_MODE_INFO::default(); mode_count as usize];
 
-    QueryDisplayConfig(
-        QDC_ALL_PATHS, &mut path_count,
-        paths.as_mut_ptr(), &mut mode_count, modes.as_mut_ptr(), None,
-    )
-    .map_err(|e| DisplayError::BackendError(format!("QueryDisplayConfig: {e}")))?;
+    let result = QueryDisplayConfig(
+        QDC_ALL_PATHS,
+        &mut path_count,
+        paths.as_mut_ptr(),
+        &mut mode_count,
+        modes.as_mut_ptr(),
+        None,
+    );
+    if result.0 != 0 {
+        return Err(DisplayError::BackendError(format!(
+            "QueryDisplayConfig failed: {}",
+            result.0
+        )));
+    }
 
     paths.truncate(path_count as usize);
     modes.truncate(mode_count as usize);
@@ -325,17 +343,23 @@ unsafe fn apply_resolution_for_target(target_id: u32, width: u32, _height: u32) 
     // Find rightmost X among other active paths
     let mut rightmost_x: i32 = 0;
     for (i2, p) in paths.iter().enumerate() {
-        if i2 == idx || (p.flags & DISPLAYCONFIG_PATH_ACTIVE) == 0 { continue; }
+        if i2 == idx || (p.flags & DISPLAYCONFIG_PATH_ACTIVE) == 0 {
+            continue;
+        }
         let si = p.sourceInfo.Anonymous.modeInfoIdx as usize;
         if si < modes.len() {
             let sm = &modes[si];
             let x = sm.Anonymous.sourceMode.position.x;
             let w = sm.Anonymous.sourceMode.width as i32;
             let x2 = x + w;
-            if x2 > rightmost_x { rightmost_x = x2; }
+            if x2 > rightmost_x {
+                rightmost_x = x2;
+            }
         }
     }
-    if rightmost_x == 0 { rightmost_x = width as i32; }
+    if rightmost_x == 0 {
+        rightmost_x = width as i32;
+    }
 
     let src_idx = paths[idx].sourceInfo.Anonymous.modeInfoIdx as usize;
     if src_idx < modes.len() {
@@ -344,7 +368,8 @@ unsafe fn apply_resolution_for_target(target_id: u32, width: u32, _height: u32) 
     }
 
     let _ = SetDisplayConfig(
-        Some(&paths), Some(&modes),
+        Some(&paths),
+        Some(&modes),
         SDC_APPLY | SDC_USE_SUPPLIED_DISPLAY_CONFIG | SDC_SAVE_TO_DATABASE,
     );
 }

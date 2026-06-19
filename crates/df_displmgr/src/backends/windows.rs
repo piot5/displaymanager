@@ -1,17 +1,17 @@
 use async_trait::async_trait;
+use serde::Deserialize;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use tokio::task;
-use serde::Deserialize;
+use windows::Win32::Devices::Display as WinDisplay;
 use windows::Win32::UI::HiDpi::{
     SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
-use windows::Win32::Devices::Display as WinDisplay;
 
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
-use crate::types::{OutputState, DisplayId, Extent2D, Point2D, HdrState};
+use crate::types::{DisplayId, Extent2D, HdrState, OutputState, Point2D};
 
 /// CCD (Continuous Configuration Driver) backend for advanced display topology.
 pub mod displmgr_ccd;
@@ -26,10 +26,7 @@ pub use self::displmgr_gdi::{force_activate_by_monitor_name, force_all};
 
 // Re-export CCD-level functions for public use
 pub use self::displmgr_ccd::{
-    DisplayTargetInfo,
-    query_all_display_targets,
-    find_display_target,
-    ccd_wake_display,
+    ccd_wake_display, find_display_target, query_all_display_targets, DisplayTargetInfo,
 };
 
 /// Holds OS-specific routing data connecting CCD target definitions to GDI device names.
@@ -73,11 +70,11 @@ fn load_hardware_map() -> Option<EdidDump> {
     if !path.exists() {
         return None;
     }
-    
+
     let mut file = File::open(path).ok()?;
     let mut contents = String::new();
     file.read_to_string(&mut contents).ok()?;
-    
+
     serde_json::from_str(&contents).ok()
 }
 
@@ -122,12 +119,16 @@ impl WinDisplayManager {
     /// Useful for automatically placing a newly activated display.
     pub fn auto_position_right_of(&self) -> Point2D {
         let outputs = self.get_outputs();
-        let rightmost_x = outputs.iter()
+        let rightmost_x = outputs
+            .iter()
             .filter(|o| o.enabled && o.geometry.size.width > 0)
             .map(|o| o.geometry.origin.x + o.geometry.size.width as i32)
             .max()
             .unwrap_or(1920);
-        Point2D { x: rightmost_x, y: 0 }
+        Point2D {
+            x: rightmost_x,
+            y: 0,
+        }
     }
 }
 
@@ -205,8 +206,12 @@ fn apply_gdi_state_to_ccd(gdi: &GdiTopology, fresh_ccd: &CcdTopology) {
     use crate::backends::windows::displmgr_ccd::displmgr_ccd_sys as ccd_sys;
 
     for gdi_state in gdi.outputs.values() {
-        let Some(ref hid) = gdi_state.identity.hardware_uuid else { continue };
-        let Ok(target_id) = hid.parse::<u32>() else { continue };
+        let Some(ref hid) = gdi_state.identity.hardware_uuid else {
+            continue;
+        };
+        let Ok(target_id) = hid.parse::<u32>() else {
+            continue;
+        };
 
         for path in &fresh_ccd.data.paths {
             if path.targetInfo.id != target_id {
@@ -219,21 +224,31 @@ fn apply_gdi_state_to_ccd(gdi: &GdiTopology, fresh_ccd: &CcdTopology) {
                 let mut payload = ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET {
                     header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
                         r#type: ccd_sys::DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE,
-                        size: std::mem::size_of::<ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET>() as u32,
+                        size: std::mem::size_of::<ccd_sys::DISPLAYCONFIG_SOURCE_DPI_SCALE_SET>()
+                            as u32,
                         adapterId: path.targetInfo.adapterId,
                         id: target_id,
                     },
                     scale_factor_as_percent: scale_percent,
                 };
-                let res = unsafe { WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
+                let res = unsafe {
+                    WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _)
+                };
                 if res != 0 {
-                    eprintln!("Warning: DPI scale set failed for target {}: 0x{:08X}", target_id, res);
+                    eprintln!(
+                        "Warning: DPI scale set failed for target {}: 0x{:08X}",
+                        target_id, res
+                    );
                 }
             }
 
             // Apply HDR state if requested
             if gdi_state.hdr_state != HdrState::Disabled {
-                let enabled = if gdi_state.hdr_state == HdrState::Enabled { 1 } else { 0 };
+                let enabled = if gdi_state.hdr_state == HdrState::Enabled {
+                    1
+                } else {
+                    0
+                };
                 let mut payload = ccd_sys::DISPLAYCONFIG_SET_HDR_STATE {
                     header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
                         r#type: ccd_sys::DISPLAYCONFIG_DEVICE_INFO_SET_HDR_STATE,
@@ -243,9 +258,14 @@ fn apply_gdi_state_to_ccd(gdi: &GdiTopology, fresh_ccd: &CcdTopology) {
                     },
                     enabled,
                 };
-                let res = unsafe { WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
+                let res = unsafe {
+                    WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _)
+                };
                 if res != 0 {
-                    eprintln!("Warning: HDR set failed for target {}: 0x{:08X}", target_id, res);
+                    eprintln!(
+                        "Warning: HDR set failed for target {}: 0x{:08X}",
+                        target_id, res
+                    );
                 }
             }
 
@@ -260,23 +280,23 @@ impl UniversalTopology for WinDisplayManager {
     fn acquire() -> DisplayResult<Self> {
         // Force raw physical pixel grids across all connected FFI communication boundaries
         ensure_dpi_aware();
-        
+
         let hardware_map = load_hardware_map();
         let mut use_ccd = true;
-        
+
         // Attempt to establish a valid session connection using the modern CCD subsystem
         let ccd_backend = CcdTopology::acquire().map(Some).unwrap_or_else(|_| {
             // Degrade gracefully to legacy tracking if CCD fails (e.g., inside an RDP session)
             use_ccd = false;
             None
         });
-        
+
         // GDI is initialized unconditionally to guarantee a safe, reliable execution fallback
         let mut gdi_backend = GdiTopology::acquire()?;
-        
+
         // Apply hardware map definitions to the initial GDI dataset
         enrich_gdi_topology(&mut gdi_backend, &hardware_map);
-        
+
         Ok(WinDisplayManager {
             ccd: ccd_backend,
             gdi: gdi_backend,
@@ -292,7 +312,7 @@ impl UniversalTopology for WinDisplayManager {
                 return ccd_backend.get_outputs();
             }
         }
-        
+
         // Fallback to evaluating the current GDI topology map structures
         self.gdi.get_outputs()
     }
@@ -304,7 +324,7 @@ impl UniversalTopology for WinDisplayManager {
                 return ccd_backend.edit_output(id);
             }
         }
-        
+
         self.gdi.edit_output(id)
     }
 
@@ -325,7 +345,7 @@ impl UniversalTopology for WinDisplayManager {
                 return ccd_backend.validate().await;
             }
         }
-        
+
         // Legacy GDI does not natively support isolated dry-run validation steps
         Ok(())
     }
@@ -335,7 +355,11 @@ impl UniversalTopology for WinDisplayManager {
         if self.use_ccd {
             let mut ccd_backend = match self.ccd.take() {
                 Some(backend) => backend,
-                None => return Err(DisplayError::BackendError("CCD backend uninitialized".into())),
+                None => {
+                    return Err(DisplayError::BackendError(
+                        "CCD backend uninitialized".into(),
+                    ))
+                }
             };
 
             // CCD requires synchronous kernel interactions isolated onto a dedicated blocking thread
@@ -346,7 +370,9 @@ impl UniversalTopology for WinDisplayManager {
                 Ok(ccd_backend)
             })
             .await
-            .map_err(|e| DisplayError::BackendError(format!("CCD blocking task execution panic: {}", e)))??;
+            .map_err(|e| {
+                DisplayError::BackendError(format!("CCD blocking task execution panic: {}", e))
+            })??;
 
             self.ccd = Some(updated_ccd);
 
@@ -367,7 +393,9 @@ impl UniversalTopology for WinDisplayManager {
                 Ok(gdi_backend)
             })
             .await
-            .map_err(|e| DisplayError::BackendError(format!("GDI blocking task execution panic: {}", e)))??;
+            .map_err(|e| {
+                DisplayError::BackendError(format!("GDI blocking task execution panic: {}", e))
+            })??;
 
             self.gdi = updated_gdi;
 
@@ -377,11 +405,11 @@ impl UniversalTopology for WinDisplayManager {
                 self.ccd = Some(fresh_ccd);
                 self.use_ccd = true;
             }
-            
+
             // Re-enrich the local GDI state layer following the flush sequence
             enrich_gdi_topology(&mut self.gdi, &self.hardware_map);
         }
-        
+
         Ok(())
     }
 }

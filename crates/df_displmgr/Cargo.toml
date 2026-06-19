@@ -34,6 +34,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
+anyhow = { workspace = true }
 
 # Windows-Backends
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -46,6 +47,7 @@ wayland-protocols = { workspace = true, features = ["client"] }
 wayland-protocols-wlr = { workspace = true, features = ["client"] }
 drm = { workspace = true }
 libc = "0.2"
+anyhow = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

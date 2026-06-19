@@ -1,5 +1,5 @@
+use crate::ddc_types::{InputSource, MonitorCapabilities, PowerState};
 use crate::error::DdcError;
-use crate::ddc_types::{MonitorCapabilities, PowerState, InputSource};
 // (remove duplicate re‑exports)
 
 /// Represents a connected DDC/CI-capable display device.
@@ -20,7 +20,7 @@ pub struct DisplayDevice {
 pub trait DdcControl: Send + Sync {
     /// Returns the current and maximum value for a given VCP code.
     fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError>;
-    
+
     /// Sets a value for a specific VCP code.
     fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError>;
 
@@ -28,9 +28,11 @@ pub trait DdcControl: Send + Sync {
     fn get_capabilities(&self) -> Result<MonitorCapabilities, DdcError> {
         let (b_cur, b_max) = self.get_vcp_feature(0x10)?;
         let (c_cur, c_max) = self.get_vcp_feature(0x12)?;
-        Ok(MonitorCapabilities { 
-            brightness: b_cur, brightness_max: b_max, 
-            contrast: c_cur, contrast_max: c_max 
+        Ok(MonitorCapabilities {
+            brightness: b_cur,
+            brightness_max: b_max,
+            contrast: c_cur,
+            contrast_max: c_max,
         })
     }
 
@@ -49,5 +51,3 @@ pub trait DdcControl: Send + Sync {
         self.set_vcp_feature(0x10, value)
     }
 }
-
-

@@ -4,9 +4,8 @@
 // Shows different configurations of the ActivationPlan struct.
 
 use df_displmgr::{
-    NativeTopology, UniversalTopology, DisplayId,
-    Extent2D, Point2D, ActivationPlan, DisplayRotation,
-    activate_with_topology_restore,
+    activate_with_topology_restore, ActivationPlan, DisplayId, DisplayRotation, Extent2D,
+    NativeTopology, Point2D, UniversalTopology,
 };
 
 #[tokio::main(flavor = "current_thread")]
@@ -50,7 +49,10 @@ async fn main() -> df_displmgr::DisplayResult<()> {
     println!("\n>>> Test 3: position (0, 1080) + resolution (1920x1080):");
     let plan = ActivationPlan {
         position: Some(Point2D { x: 0, y: 1080 }),
-        resolution: Some(Extent2D { width: 1920, height: 1080 }),
+        resolution: Some(Extent2D {
+            width: 1920,
+            height: 1080,
+        }),
         rotation: None,
     };
     // Use a different monitor if available, otherwise skip
@@ -67,7 +69,10 @@ async fn main() -> df_displmgr::DisplayResult<()> {
     println!("\n>>> Test 4: position (3840, 0) + rotation 90 deg:");
     let plan = ActivationPlan {
         position: Some(Point2D { x: 3840, y: 0 }),
-        resolution: Some(Extent2D { width: 1080, height: 1920 }), // rotated
+        resolution: Some(Extent2D {
+            width: 1080,
+            height: 1920,
+        }), // rotated
         rotation: Some(DisplayRotation::Rotate90),
     };
     activate_with_topology_restore(4356, &plan).await?;
@@ -81,9 +86,16 @@ async fn main() -> df_displmgr::DisplayResult<()> {
         let primary = if o.is_primary { "*" } else { " " };
         println!(
             "  [{}] {} {} (id={}) pos=({},{}) size={}x{} rot={:?} {}",
-            i + 1, primary, o.identity.monitor_name.trim(),
-            o.identity.id.0, o.geometry.origin.x, o.geometry.origin.y,
-            o.geometry.size.width, o.geometry.size.height, o.rotation, status
+            i + 1,
+            primary,
+            o.identity.monitor_name.trim(),
+            o.identity.id.0,
+            o.geometry.origin.x,
+            o.geometry.origin.y,
+            o.geometry.size.width,
+            o.geometry.size.height,
+            o.rotation,
+            status
         );
     }
 

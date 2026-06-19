@@ -34,11 +34,11 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
-pub mod ddc_types;
-/// DDC/CI trait definitions and device abstraction.
-pub mod ddc_trait;
 /// Platform-specific DDC/CI backend implementations.
 pub mod ddc_backends;
+/// DDC/CI trait definitions and device abstraction.
+pub mod ddc_trait;
+pub mod ddc_types;
 /// Error types for DDC/CI operations.
 pub mod error;
 
@@ -49,7 +49,7 @@ use crate::ddc_trait::DisplayDevice;
 /// This function filters out non-display I2C devices on Linux and
 /// manages physical monitor handles on Windows.
 pub fn list_monitors() -> Vec<DisplayDevice> {
-let mut list: Vec<DisplayDevice> = Vec::new();
+    let mut list: Vec<DisplayDevice> = Vec::new();
 
     #[cfg(target_os = "windows")]
     {
@@ -60,7 +60,7 @@ let mut list: Vec<DisplayDevice> = Vec::new();
         // is constructed from a reference to a live Vec.
         #[allow(unsafe_code)]
         mod windows_ffi {
-use crate::ddc_trait::DisplayDevice;
+            use crate::ddc_trait::DisplayDevice;
             use windows::Win32::Devices::Display::*;
             use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
             use windows::Win32::Graphics::Gdi::*;
@@ -86,17 +86,18 @@ use crate::ddc_trait::DisplayDevice;
                         if GetPhysicalMonitorsFromHMONITOR(h, &mut physical_monitors).is_ok() {
                             for monitor in physical_monitors {
                                 let desc = monitor.szPhysicalMonitorDescription;
-                                let len =
-                                    desc.iter().position(|&c| c == 0).unwrap_or(desc.len());
+                                let len = desc.iter().position(|&c| c == 0).unwrap_or(desc.len());
 
-                                l.push(DisplayDevice {
-                                    info: String::from_utf16_lossy(&desc[..len]),
-                                    inner: Box::new(
-                                        crate::ddc_backends::ddc_win::WindowsBackend {
-                                            handle: monitor.hPhysicalMonitor.0,
-                                        },
-                                    ),
-                                });
+                                if let Some(handle) =
+                                    std::ptr::NonNull::new(monitor.hPhysicalMonitor.0)
+                                {
+                                    l.push(DisplayDevice {
+                                        info: String::from_utf16_lossy(&desc[..len]),
+                                        inner: Box::new(
+                                            crate::ddc_backends::ddc_win::WindowsBackend { handle },
+                                        ),
+                                    });
+                                }
                             }
                         }
                     }
@@ -120,7 +121,7 @@ use crate::ddc_trait::DisplayDevice;
             }
         }
 
-list.extend(windows_ffi::enumerate_windows_monitors());
+        list.extend(windows_ffi::enumerate_windows_monitors());
     }
 
     #[cfg(target_os = "linux")]

@@ -7,7 +7,7 @@
 use crate::backends::windows::displmgr_gdi::GdiTopology;
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::OutputEditable;
-use crate::types::{OutputState, DisplayId, Extent2D, Point2D, HdrState, HdrMode, DisplayRotation};
+use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 
 /// Per-output editor for GDI-based display configuration.
 ///
@@ -30,34 +30,52 @@ impl<'a> GdiOutputEditor<'a> {
     /// * `topology` - Mutable reference to the parent GDI topology.
     /// * `target_id` - The display identifier string (GDI device name).
     pub fn new(topology: &'a mut GdiTopology, target_id: String) -> Self {
-        Self { topology, target_id }
+        Self {
+            topology,
+            target_id,
+        }
     }
 }
 
 impl<'a> OutputEditable for GdiOutputEditor<'a> {
-    fn set_rotation(&mut self, rotation: DisplayRotation) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+    fn set_rotation(
+        &mut self,
+        rotation: DisplayRotation,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.rotation = rotation;
         Ok(self)
     }
 
     fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.geometry.size = extent;
         Ok(self)
     }
 
     fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.geometry.origin = position;
         Ok(self)
     }
 
     fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.refresh_rate = rate;
         Ok(self)
@@ -68,8 +86,15 @@ impl<'a> OutputEditable for GdiOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_hdr(&mut self, state_val: HdrState, mode_val: HdrMode) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+    fn set_hdr(
+        &mut self,
+        state_val: HdrState,
+        mode_val: HdrMode,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.hdr_state = state_val;
         state.hdr_mode = mode_val;
@@ -77,29 +102,46 @@ impl<'a> OutputEditable for GdiOutputEditor<'a> {
     }
 
     fn set_scale(&mut self, scale_val: f64) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.scale = scale_val;
         Ok(self)
     }
 
     fn get_state(&self) -> OutputState {
-        self.topology.outputs.get(&self.target_id).cloned().unwrap_or_default()
+        self.topology
+            .outputs
+            .get(&self.target_id)
+            .cloned()
+            .unwrap_or_default()
     }
 
     fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
-        let state = self.topology.outputs.get_mut(&self.target_id)
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
         state.enabled = enabled;
         Ok(self)
     }
 
     fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
-        let source_state = self.topology.outputs.get(&source_id.0)
-            .ok_or_else(|| DisplayError::NotFound(source_id.clone()))?.clone();
-        let state = self.topology.outputs.get_mut(&self.target_id)
+        let source_state = self
+            .topology
+            .outputs
+            .get(&source_id.0)
+            .ok_or_else(|| DisplayError::NotFound(source_id.clone()))?
+            .clone();
+        let state = self
+            .topology
+            .outputs
+            .get_mut(&self.target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(self.target_id.clone())))?;
-        
+
         state.geometry = source_state.geometry;
         state.refresh_rate = source_state.refresh_rate;
         state.rotation = source_state.rotation;

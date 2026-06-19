@@ -4,19 +4,21 @@
 //! Features Atomic KMS for flicker-free, synchronized updates and dynamic property discovery.
 
 use async_trait::async_trait;
+use drm::control::{atomic::AtomicModeReq, AtomicCommitFlags};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use drm::control::{AtomicCommitFlags, atomic::AtomicModeReq};
 
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
-use crate::types::{OutputState, DisplayRotation, HdrState, HdrMode, DisplayId, Extent2D, Point2D, Rect};
+use crate::types::{
+    DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect,
+};
 
-pub mod displmgr_drm_sys;
 pub mod displmgr_drm_api;
+pub mod displmgr_drm_sys;
 
-use self::displmgr_drm_sys::{DrmResourceIds, DrmPropertyCache, rotation_to_drm_value};
 use self::displmgr_drm_api::probe_drm_hardware;
+use self::displmgr_drm_sys::{rotation_to_drm_value, DrmPropertyCache, DrmResourceIds};
 
 /// Linux Direct Rendering Manager (DRM) Backend using Atomic KMS.
 pub struct DrmTopology {
@@ -30,19 +32,28 @@ pub struct DrmTopology {
 
 impl DrmTopology {
     /// Internal helper to locate queryable property tokens across active connectors.
-    pub fn find_prop_id(&self, conn: drm::control::connector::Handle, name: &str) -> Option<drm::control::property::Handle> {
+    pub fn find_prop_id(
+        &self,
+        conn: drm::control::connector::Handle,
+        name: &str,
+    ) -> Option<drm::control::property::Handle> {
         self.property_cache.props.get(&conn)?.get(name).cloned()
     }
 
     /// Wake inactive outputs and return their `DisplayId`s so they can be
     /// restored later. If `keep_active` is provided, that output will remain
     /// enabled after restore.
-    pub fn snapshot_wake_inactive_outputs(&mut self, keep_active: Option<&DisplayId>) -> Vec<DisplayId> {
+    pub fn snapshot_wake_inactive_outputs(
+        &mut self,
+        keep_active: Option<&DisplayId>,
+    ) -> Vec<DisplayId> {
         let mut activated = Vec::new();
         for out in &mut self.outputs {
             if !out.enabled {
                 if let Some(k) = keep_active {
-                    if &out.identity.id == k { continue; }
+                    if &out.identity.id == k {
+                        continue;
+                    }
                 }
                 out.enabled = true;
                 activated.push(out.identity.id.clone());
@@ -70,27 +81,37 @@ pub struct DrmOutputEditor<'a> {
 }
 
 macro_rules! find_drm_output {
-    ($self:expr) => {
-        {
-            let target_id = $self.target_id.clone();
-            $self.topology.outputs.iter_mut().find(|o| o.identity.id == target_id)
-                .ok_or_else(|| DisplayError::NotFound(target_id))
-        }
-    };
+    ($self:expr) => {{
+        let target_id = $self.target_id.clone();
+        $self
+            .topology
+            .outputs
+            .iter_mut()
+            .find(|o| o.identity.id == target_id)
+            .ok_or_else(|| DisplayError::NotFound(target_id))
+    }};
 }
 
 impl<'a> OutputEditable for DrmOutputEditor<'a> {
-    fn set_rotation(&mut self, rotation: DisplayRotation) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_rotation(
+        &mut self,
+        rotation: DisplayRotation,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
         let out = find_drm_output!(self)?;
         if out.rotation != rotation {
             out.rotation = rotation;
-            
-            let res = self.topology.resource_map.get(&self.target_id)
+
+            let res = self
+                .topology
+                .resource_map
+                .get(&self.target_id)
                 .ok_or_else(|| DisplayError::NotFound(self.target_id.clone()))?;
-            
+
             if let Some(prop_rot) = self.topology.find_prop_id(res.connector_id, "rotation") {
                 let val = rotation_to_drm_value(rotation);
-                self.topology.atomic_req.add_property(res.primary_plane_id, prop_rot, val);
+                self.topology
+                    .atomic_req
+                    .add_property(res.primary_plane_id, prop_rot, val);
                 self.topology.dirty = true;
             }
         }
@@ -112,15 +133,26 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         let out = find_drm_output!(self)?;
         if out.geometry.origin != position {
             out.geometry.origin = position;
-            
-            let res = self.topology.resource_map.get(&self.target_id)
+
+            let res = self
+                .topology
+                .resource_map
+                .get(&self.target_id)
                 .ok_or_else(|| DisplayError::NotFound(self.target_id.clone()))?;
-            
+
             if let Some(prop_x) = self.topology.find_prop_id(res.connector_id, "CRTC_X") {
-                self.topology.atomic_req.add_property(res.primary_plane_id, prop_x, position.x as u64);
+                self.topology.atomic_req.add_property(
+                    res.primary_plane_id,
+                    prop_x,
+                    position.x as u64,
+                );
             }
             if let Some(prop_y) = self.topology.find_prop_id(res.connector_id, "CRTC_Y") {
-                self.topology.atomic_req.add_property(res.primary_plane_id, prop_y, position.y as u64);
+                self.topology.atomic_req.add_property(
+                    res.primary_plane_id,
+                    prop_y,
+                    position.y as u64,
+                );
             }
             self.topology.dirty = true;
         }
@@ -146,18 +178,30 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_hdr(&mut self, state: HdrState, mode: HdrMode) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_hdr(
+        &mut self,
+        state: HdrState,
+        mode: HdrMode,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
         let out = find_drm_output!(self)?;
         if out.hdr_state != state || out.hdr_mode != mode {
             out.hdr_state = state;
             out.hdr_mode = mode;
-            
-            let res = self.topology.resource_map.get(&self.target_id)
+
+            let res = self
+                .topology
+                .resource_map
+                .get(&self.target_id)
                 .ok_or_else(|| DisplayError::NotFound(self.target_id.clone()))?;
-            
-            if let Some(prop_hdr) = self.topology.find_prop_id(res.connector_id, "HDR_OUTPUT_METADATA") {
+
+            if let Some(prop_hdr) = self
+                .topology
+                .find_prop_id(res.connector_id, "HDR_OUTPUT_METADATA")
+            {
                 let val = if state == HdrState::Enabled { 1 } else { 0 };
-                self.topology.atomic_req.add_property(res.connector_id, prop_hdr, val);
+                self.topology
+                    .atomic_req
+                    .add_property(res.connector_id, prop_hdr, val);
                 self.topology.dirty = true;
             }
         }
@@ -183,7 +227,10 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
     }
 
     fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
-        let source_state = self.topology.outputs.iter()
+        let source_state = self
+            .topology
+            .outputs
+            .iter()
             .find(|o| o.identity.id == *source_id)
             .cloned()
             .ok_or_else(|| DisplayError::NotFound(source_id.clone()))?;
@@ -193,13 +240,15 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         dest.refresh_rate = source_state.refresh_rate;
         dest.rotation = source_state.rotation;
         dest.scale = source_state.scale;
-        
+
         self.topology.dirty = true;
         Ok(self)
     }
 
     fn get_state(&self) -> OutputState {
-        self.topology.outputs.iter()
+        self.topology
+            .outputs
+            .iter()
             .find(|o| o.identity.id == self.target_id)
             .cloned()
             .unwrap_or_default()
@@ -252,7 +301,8 @@ impl UniversalTopology for DrmTopology {
 
     async fn validate(&self) -> DisplayResult<()> {
         let flags = AtomicCommitFlags::TEST_ONLY;
-        self.device.atomic_commit(flags, self.atomic_req.clone())
+        self.device
+            .atomic_commit(flags, self.atomic_req.clone())
             .map_err(|_| DisplayError::ConfigurationRejected)?;
         Ok(())
     }
@@ -264,11 +314,12 @@ impl UniversalTopology for DrmTopology {
 
         let device = self.device.try_clone().map_err(|e| DisplayError::Io(e))?;
         let req = self.atomic_req.clone();
-        
+
         tokio::task::spawn_blocking(move || -> DisplayResult<()> {
             let flags = AtomicCommitFlags::ALLOW_MODESET;
-            device.atomic_commit(flags, req)
-                .map_err(|e| DisplayError::BackendError(format!("KMS Atomic Flush Failure: {}", e)))?;
+            device.atomic_commit(flags, req).map_err(|e| {
+                DisplayError::BackendError(format!("KMS Atomic Flush Failure: {}", e))
+            })?;
             Ok(())
         })
         .await

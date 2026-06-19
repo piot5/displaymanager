@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
-use df_ddc::list_monitors;
-use df_ddc::ddc_types::{PowerState, VcpCode, InputSource};
-use df_ddc::error::DdcError;
 use df_ddc::ddc_trait::DisplayDevice;
+use df_ddc::ddc_types::{InputSource, PowerState, VcpCode};
+use df_ddc::error::DdcError;
+use df_ddc::list_monitors;
 
 /// CLI tool to manage DDC/CI capable monitors.
 #[derive(Parser)]
@@ -63,7 +63,11 @@ fn main() {
             apply_vcp(display, VcpCode::Volume, *value);
         }
         Commands::Power { state } => {
-            let p = if state == "off" { PowerState::Off } else { PowerState::On };
+            let p = if state == "off" {
+                PowerState::Off
+            } else {
+                PowerState::On
+            };
             if let Err(e) = display.inner.set_power(p) {
                 handle_ddc_error(e);
             } else {
@@ -74,9 +78,12 @@ fn main() {
             let src = match source.as_str() {
                 "hdmi1" => InputSource::Hdmi1,
                 "hdmi2" => InputSource::Hdmi2,
-                "dp1"   => InputSource::DisplayPort1,
-                "dp2"   => InputSource::DisplayPort2,
-                _       => { eprintln!("Error: Unknown input source."); return; }
+                "dp1" => InputSource::DisplayPort1,
+                "dp2" => InputSource::DisplayPort2,
+                _ => {
+                    eprintln!("Error: Unknown input source.");
+                    return;
+                }
             };
             if let Err(e) = display.inner.set_input(src) {
                 handle_ddc_error(e);
@@ -100,8 +107,12 @@ fn apply_vcp(display: &DisplayDevice, code: VcpCode, value: u32) {
 /// Centralized error handling for DDC operations.
 fn handle_ddc_error(err: DdcError) {
     match err {
-        DdcError::AccessDenied => eprintln!("Error: Access denied. Check I2C permissions (or run as admin/root)."),
-        DdcError::CommunicationFailed { reason } => eprintln!("Error: Hardware communication failed: {}", reason),
+        DdcError::AccessDenied => {
+            eprintln!("Error: Access denied. Check I2C permissions (or run as admin/root).")
+        }
+        DdcError::CommunicationFailed { reason } => {
+            eprintln!("Error: Hardware communication failed: {}", reason)
+        }
         DdcError::UnsupportedFeature => eprintln!("Error: Feature not supported by this monitor."),
         _ => eprintln!("An unexpected error occurred: {:?}", err),
     }

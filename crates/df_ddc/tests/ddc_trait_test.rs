@@ -1,5 +1,5 @@
 use df_ddc::ddc_trait::{DdcControl, DisplayDevice};
-use df_ddc::ddc_types::{MonitorCapabilities, PowerState, InputSource};
+use df_ddc::ddc_types::{InputSource, MonitorCapabilities, PowerState};
 use std::sync::Mutex;
 
 /// Mock DDC control implementation for testing trait methods
@@ -11,10 +11,10 @@ impl MockDdcControl {
     fn new() -> Self {
         let mut values = std::collections::HashMap::new();
         values.insert(0x10, (128, 255)); // brightness: current=128, max=255
-        values.insert(0x12, (64, 128));  // contrast: current=64, max=128
-        values.insert(0xD6, (1, 1));     // power state
-        values.insert(0x60, (1, 5));     // input source
-        
+        values.insert(0x12, (64, 128)); // contrast: current=64, max=128
+        values.insert(0xD6, (1, 1)); // power state
+        values.insert(0x60, (1, 5)); // input source
+
         Self {
             vcp_values: Mutex::new(values),
         }
@@ -24,9 +24,12 @@ impl MockDdcControl {
 impl DdcControl for MockDdcControl {
     fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), df_ddc::error::DdcError> {
         let values = self.vcp_values.lock().unwrap();
-        values.get(&code).copied().ok_or(df_ddc::error::DdcError::UnsupportedFeature)
+        values
+            .get(&code)
+            .copied()
+            .ok_or(df_ddc::error::DdcError::UnsupportedFeature)
     }
-    
+
     fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), df_ddc::error::DdcError> {
         let mut values = self.vcp_values.lock().unwrap();
         if let Some((current, max)) = values.get_mut(&code) {
@@ -45,7 +48,7 @@ fn test_display_device_creation() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     assert_eq!(device.info, "Test Monitor");
 }
 
@@ -56,7 +59,7 @@ fn test_get_capabilities() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     let caps = device.inner.get_capabilities().unwrap();
     assert_eq!(caps.brightness, 128);
     assert_eq!(caps.brightness_max, 255);
@@ -71,7 +74,7 @@ fn test_set_power() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     assert!(device.inner.set_power(PowerState::On).is_ok());
     assert!(device.inner.set_power(PowerState::Off).is_ok());
 }
@@ -83,7 +86,7 @@ fn test_set_input() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     assert!(device.inner.set_input(InputSource::Hdmi1).is_ok());
     assert!(device.inner.set_input(InputSource::DisplayPort1).is_ok());
     assert!(device.inner.set_input(InputSource::DisplayPort2).is_ok());
@@ -96,7 +99,7 @@ fn test_set_brightness() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     assert!(device.inner.set_brightness(200).is_ok());
     assert!(device.inner.set_brightness(0).is_ok());
     assert!(device.inner.set_brightness(255).is_ok());
@@ -109,7 +112,7 @@ fn test_get_vcp_feature_unsupported() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     let result = device.inner.get_vcp_feature(0xFF);
     assert!(result.is_err());
 }
@@ -121,7 +124,7 @@ fn test_set_vcp_feature_unsupported() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     let result = device.inner.set_vcp_feature(0xFF, 100);
     assert!(result.is_err());
 }
@@ -133,7 +136,7 @@ fn test_get_vcp_feature_success() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     let (brightness, max) = device.inner.get_vcp_feature(0x10).unwrap();
     assert_eq!(brightness, 128);
     assert_eq!(max, 255);
@@ -146,7 +149,7 @@ fn test_set_vcp_feature_updates() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     assert!(device.inner.set_vcp_feature(0x10, 200).is_ok());
     let (new_value, max) = device.inner.get_vcp_feature(0x10).unwrap();
     assert_eq!(new_value, 200);
@@ -160,18 +163,18 @@ fn test_multiple_operations() {
         info: "Test Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     // Get initial brightness
     let (initial_brightness, _) = device.inner.get_vcp_feature(0x10).unwrap();
     assert_eq!(initial_brightness, 128);
-    
+
     // Set new brightness
     assert!(device.inner.set_brightness(180).is_ok());
-    
+
     // Verify change
     let (new_brightness, _) = device.inner.get_vcp_feature(0x10).unwrap();
     assert_eq!(new_brightness, 180);
-    
+
     // Get capabilities still works
     let caps = device.inner.get_capabilities().unwrap();
     assert_eq!(caps.brightness, 180); // updated value
@@ -185,12 +188,12 @@ fn test_display_device_info_strings() {
         info: "I2C Display Bus (i2c-3)".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     let device2 = DisplayDevice {
         info: "HDMI Monitor".to_string(),
         inner: Box::new(MockDdcControl::new()),
     };
-    
+
     assert!(device1.info.contains("i2c-3"));
     assert_eq!(device2.info, "HDMI Monitor");
 }

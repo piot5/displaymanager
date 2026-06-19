@@ -1,19 +1,21 @@
 //! Optimized Wayland object management for wlroots-based compositors.
 //! Integrated with color-management-v1 for HDR and color space control.
 
-use wayland_client::{
-    Connection, Dispatch, QueueHandle, Proxy,
-    protocol::{wl_registry, wl_callback, wl_output::Transform}
-};
-use wayland_protocols_wlr::output_management::v1::client::{
-    zwlr_output_manager_v1, zwlr_output_head_v1, zwlr_output_mode_v1, zwlr_output_configuration_v1
-};
 use async_trait::async_trait;
 use tokio::sync::oneshot;
+use wayland_client::{
+    protocol::{wl_callback, wl_output::Transform, wl_registry},
+    Connection, Dispatch, Proxy, QueueHandle,
+};
+use wayland_protocols_wlr::output_management::v1::client::{
+    zwlr_output_configuration_v1, zwlr_output_head_v1, zwlr_output_manager_v1, zwlr_output_mode_v1,
+};
 
 use crate::error::{DisplayError, DisplayResult};
-use crate::types::{OutputState, DisplayRotation, HdrState, HdrMode, VideoMode, Extent2D, DisplayId};
-use crate::traits::{UniversalTopology, OutputEditable};
+use crate::traits::{OutputEditable, UniversalTopology};
+use crate::types::{
+    DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, VideoMode,
+};
 
 /// Internal state for tracking Wayland objects and async synchronization.
 pub struct WlrInternalState {
@@ -40,7 +42,10 @@ pub struct WlrTopology {
 impl WlrTopology {
     /// Wake any currently inactive outputs and return a list of their IDs
     /// which can later be passed to `restore_inactive_outputs` to revert.
-    pub fn snapshot_wake_inactive_outputs(&mut self, keep_active: Option<&DisplayId>) -> Vec<DisplayId> {
+    pub fn snapshot_wake_inactive_outputs(
+        &mut self,
+        keep_active: Option<&DisplayId>,
+    ) -> Vec<DisplayId> {
         let mut activated = Vec::new();
         for head in &mut self.state.heads {
             let id = head.current_state.identity.id.clone();
@@ -61,7 +66,12 @@ impl WlrTopology {
     /// output that was explicitly kept active during snapshot.
     pub fn restore_inactive_outputs(&mut self, inactive_ids: &[DisplayId]) {
         for id in inactive_ids {
-            if let Some(head) = self.state.heads.iter_mut().find(|h| &h.current_state.identity.id == id) {
+            if let Some(head) = self
+                .state
+                .heads
+                .iter_mut()
+                .find(|h| &h.current_state.identity.id == id)
+            {
                 head.current_state.enabled = false;
             }
         }
@@ -95,17 +105,43 @@ fn rotation_to_wl_transform(rotation: DisplayRotation) -> Transform {
 // --- Dispatch Implementations (Registry, Manager, Head, Mode, Callback) ---
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WlrInternalState {
-    fn event(state: &mut Self, proxy: &wl_registry::WlRegistry, event: wl_registry::Event, _: &(), _: &Connection, qh: &QueueHandle<Self>) {
-        if let wl_registry::Event::Global { name, interface, version } = event {
+    fn event(
+        state: &mut Self,
+        proxy: &wl_registry::WlRegistry,
+        event: wl_registry::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_registry::Event::Global {
+            name,
+            interface,
+            version,
+        } = event
+        {
             if interface == zwlr_output_manager_v1::ZwlrOutputManagerV1::interface().name {
-                state.manager = Some(proxy.bind::<zwlr_output_manager_v1::ZwlrOutputManagerV1, _, _>(name, version, qh, ()));
+                state.manager = Some(
+                    proxy.bind::<zwlr_output_manager_v1::ZwlrOutputManagerV1, _, _>(
+                        name,
+                        version,
+                        qh,
+                        (),
+                    ),
+                );
             }
         }
     }
 }
 
 impl Dispatch<zwlr_output_manager_v1::ZwlrOutputManagerV1, ()> for WlrInternalState {
-    fn event(state: &mut Self, _: &zwlr_output_manager_v1::ZwlrOutputManagerV1, event: zwlr_output_manager_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &zwlr_output_manager_v1::ZwlrOutputManagerV1,
+        event: zwlr_output_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let zwlr_output_manager_v1::Event::Done { serial } = event {
             state.serial = serial;
         }
@@ -113,7 +149,14 @@ impl Dispatch<zwlr_output_manager_v1::ZwlrOutputManagerV1, ()> for WlrInternalSt
 }
 
 impl Dispatch<zwlr_output_head_v1::ZwlrOutputHeadV1, ()> for WlrInternalState {
-    fn event(state: &mut Self, proxy: &zwlr_output_head_v1::ZwlrOutputHeadV1, event: zwlr_output_head_v1::Event, _: &(), _: &Connection, qh: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        proxy: &zwlr_output_head_v1::ZwlrOutputHeadV1,
+        event: zwlr_output_head_v1::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
         let head_idx = if let Some(idx) = state.heads.iter().position(|h| h.handle == *proxy) {
             idx
         } else {
@@ -142,7 +185,10 @@ impl Dispatch<zwlr_output_head_v1::ZwlrOutputHeadV1, ()> for WlrInternalState {
                 head.current_state.rotation = wl_transform_to_rotation(transform);
             }
             zwlr_output_head_v1::Event::Mode { mode } => {
-                qh.make_handle().insert_instance::<zwlr_output_mode_v1::ZwlrOutputModeV1, usize>(&mode, head_idx);
+                qh.make_handle()
+                    .insert_instance::<zwlr_output_mode_v1::ZwlrOutputModeV1, usize>(
+                        &mode, head_idx,
+                    );
             }
             zwlr_output_head_v1::Event::Enabled { enabled } => {
                 head.current_state.enabled = enabled != 0;
@@ -153,7 +199,14 @@ impl Dispatch<zwlr_output_head_v1::ZwlrOutputHeadV1, ()> for WlrInternalState {
 }
 
 impl Dispatch<zwlr_output_mode_v1::ZwlrOutputModeV1, usize> for WlrInternalState {
-    fn event(state: &mut Self, proxy: &zwlr_output_mode_v1::ZwlrOutputModeV1, event: zwlr_output_mode_v1::Event, head_idx: &usize, _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        proxy: &zwlr_output_mode_v1::ZwlrOutputModeV1,
+        event: zwlr_output_mode_v1::Event,
+        head_idx: &usize,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let Some(head) = state.heads.get_mut(*head_idx) {
             match event {
                 zwlr_output_mode_v1::Event::Size { width, height } => {
@@ -180,7 +233,14 @@ impl Dispatch<zwlr_output_mode_v1::ZwlrOutputModeV1, usize> for WlrInternalState
 }
 
 impl Dispatch<wl_callback::WlCallback, ()> for WlrInternalState {
-    fn event(state: &mut Self, _: &wl_callback::WlCallback, _: wl_callback::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &wl_callback::WlCallback,
+        _: wl_callback::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let Some(tx) = state.sync_tx.take() {
             let _ = tx.send(());
         }
@@ -207,26 +267,39 @@ impl UniversalTopology for WlrTopology {
         };
 
         let _registry = conn.display().get_registry(&qh, ());
-        let mut wrapper = WlrTopology { connection: conn, state, event_queue };
-        
-        wrapper.event_queue.roundtrip(&mut wrapper.state)
+        let mut wrapper = WlrTopology {
+            connection: conn,
+            state,
+            event_queue,
+        };
+
+        wrapper
+            .event_queue
+            .roundtrip(&mut wrapper.state)
             .map_err(|e| DisplayError::BackendError(e.to_string()))?;
 
         Ok(wrapper)
     }
 
     fn get_outputs(&self) -> Vec<OutputState> {
-        self.state.heads.iter().map(|h| h.current_state.clone()).collect()
+        self.state
+            .heads
+            .iter()
+            .map(|h| h.current_state.clone())
+            .collect()
     }
 
     fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
-        let head_idx = self.state.heads.iter()
+        let head_idx = self
+            .state
+            .heads
+            .iter()
             .position(|h| h.current_state.identity.id == *id)
             .ok_or_else(|| DisplayError::NotFound(id.clone()))?;
-        
-        Ok(Box::new(WlrOutputEditor { 
+
+        Ok(Box::new(WlrOutputEditor {
             head: &mut self.state.heads[head_idx],
-            all_heads: &self.state.heads 
+            all_heads: &self.state.heads,
         }))
     }
 
@@ -242,7 +315,10 @@ impl UniversalTopology for WlrTopology {
     }
 
     async fn commit(&mut self) -> DisplayResult<()> {
-        let manager = self.state.manager.as_ref()
+        let manager = self
+            .state
+            .manager
+            .as_ref()
             .ok_or_else(|| DisplayError::BackendError("Output manager missing".into()))?;
 
         let qh = self.event_queue.handle();
@@ -251,7 +327,10 @@ impl UniversalTopology for WlrTopology {
         for head in &self.state.heads {
             if head.current_state.enabled {
                 let head_config = config.enable_head(&head.handle, &qh, ());
-                head_config.set_position(head.current_state.geometry.origin.x, head.current_state.geometry.origin.y);
+                head_config.set_position(
+                    head.current_state.geometry.origin.x,
+                    head.current_state.geometry.origin.y,
+                );
                 head_config.set_scale(head.current_state.scale as f32);
                 head_config.set_transform(rotation_to_wl_transform(head.current_state.rotation));
             } else {
@@ -259,7 +338,9 @@ impl UniversalTopology for WlrTopology {
             }
 
             if head.current_state.hdr_state == HdrState::Enabled {
-                return Err(DisplayError::BackendError("HDR is not supported in this simplified WLR path".into()));
+                return Err(DisplayError::BackendError(
+                    "HDR is not supported in this simplified WLR path".into(),
+                ));
             }
         }
 
@@ -270,17 +351,22 @@ impl UniversalTopology for WlrTopology {
         self.connection.display().sync(&qh, ());
 
         while self.state.sync_tx.is_some() {
-            self.event_queue.blocking_dispatch(&mut self.state)
+            self.event_queue
+                .blocking_dispatch(&mut self.state)
                 .map_err(|e| DisplayError::BackendError(e.to_string()))?;
         }
 
-        rx.await.map_err(|_| DisplayError::BackendError("Sync failed during commit".into()))?;
+        rx.await
+            .map_err(|_| DisplayError::BackendError("Sync failed during commit".into()))?;
         Ok(())
     }
 }
 
 impl<'a> OutputEditable for WlrOutputEditor<'a> {
-    fn set_rotation(&mut self, rotation: DisplayRotation) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_rotation(
+        &mut self,
+        rotation: DisplayRotation,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
         self.head.current_state.rotation = rotation;
         Ok(self)
     }
@@ -290,7 +376,10 @@ impl<'a> OutputEditable for WlrOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_position(&mut self, position: crate::types::Point2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(
+        &mut self,
+        position: crate::types::Point2D,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
         self.head.current_state.geometry.origin = position;
         Ok(self)
     }
@@ -305,7 +394,11 @@ impl<'a> OutputEditable for WlrOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_hdr(&mut self, state: HdrState, mode: HdrMode) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_hdr(
+        &mut self,
+        state: HdrState,
+        mode: HdrMode,
+    ) -> DisplayResult<&mut dyn OutputEditable> {
         self.head.current_state.hdr_state = state;
         self.head.current_state.hdr_mode = mode;
         Ok(self)
@@ -322,7 +415,9 @@ impl<'a> OutputEditable for WlrOutputEditor<'a> {
     }
 
     fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
-        let source_state = self.all_heads.iter()
+        let source_state = self
+            .all_heads
+            .iter()
             .find(|h| h.current_state.identity.id == *source_id)
             .map(|h| &h.current_state)
             .ok_or_else(|| DisplayError::NotFound(source_id.clone()))?;

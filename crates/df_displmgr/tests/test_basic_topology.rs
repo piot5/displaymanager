@@ -6,9 +6,8 @@
 // - Set position and resolution
 
 use df_displmgr::{
-    NativeTopology, UniversalTopology, DisplayId,
-    Extent2D, Point2D,
-    force_all, force_activate_by_monitor_name,
+    force_activate_by_monitor_name, force_all, DisplayId, Extent2D, NativeTopology, Point2D,
+    UniversalTopology,
 };
 
 #[tokio::main(flavor = "current_thread")]
@@ -25,9 +24,15 @@ async fn main() -> df_displmgr::DisplayResult<()> {
         let primary = if o.is_primary { "*" } else { " " };
         println!(
             "  [{}] {} {} (id={}) pos=({},{}) size={}x{} {}",
-            i + 1, primary, o.identity.monitor_name.trim(),
-            o.identity.id.0, o.geometry.origin.x, o.geometry.origin.y,
-            o.geometry.size.width, o.geometry.size.height, status
+            i + 1,
+            primary,
+            o.identity.monitor_name.trim(),
+            o.identity.id.0,
+            o.geometry.origin.x,
+            o.geometry.origin.y,
+            o.geometry.size.width,
+            o.geometry.size.height,
+            status
         );
     }
 
@@ -56,7 +61,10 @@ async fn main() -> df_displmgr::DisplayResult<()> {
         if let Ok(mut editor) = topo.edit_output(&DisplayId("4356".into())) {
             editor.set_enabled(true)?;
             editor.set_position(Point2D { x: 1920, y: 0 })?;
-            editor.set_resolution(Extent2D { width: 1920, height: 1080 })?;
+            editor.set_resolution(Extent2D {
+                width: 1920,
+                height: 1080,
+            })?;
         }
         topo.set_persistence(true);
         topo.commit().await?;

@@ -1,5 +1,5 @@
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Strongly-typed wrapper for a unique display output identifier.
 ///
@@ -17,8 +17,7 @@ use serde::{Deserialize, Serialize};
 /// let id = DisplayId("HDMI-1".to_string());
 /// assert_eq!(id.to_string(), "HDMI-1");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
-         Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct DisplayId(pub String);
 
 impl fmt::Display for DisplayId {
@@ -32,8 +31,7 @@ impl fmt::Display for DisplayId {
 ///
 /// Connector IDs are assigned by the kernel's DRM subsystem or the Wayland
 /// compositor and remain stable across reboots for a given physical port.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
-         Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct ConnectorId(pub String);
 
 impl fmt::Display for ConnectorId {
@@ -46,8 +44,7 @@ impl fmt::Display for ConnectorId {
 ///
 /// On Windows this maps to the adapter LUID; on Linux it represents the
 /// DRM card path (e.g., `"/dev/dri/card0"`).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
-         Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
 pub struct AdapterId(pub String);
 
 impl fmt::Display for AdapterId {
@@ -231,4 +228,3 @@ impl Default for OutputState {
         }
     }
 }
-

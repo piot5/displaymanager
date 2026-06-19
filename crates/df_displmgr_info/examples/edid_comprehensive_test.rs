@@ -1,15 +1,21 @@
+use df_displmgr_info::edid_types::{DigitalInterfaceType, VideoInterfaceInfo};
 use df_displmgr_info::{collect_monitor_data, MonitorDetails};
-use df_displmgr_info::edid_types::{VideoInterfaceInfo, DigitalInterfaceType};
 
 /// Maps native Windows video output technology enums to clean descriptive strings,
 /// handling both raw numeric integers and formatted variations safely.
 fn format_output_tech(tech_str: &str) -> String {
     let clean = tech_str.trim();
-    if clean == "5" || clean.contains("(5)") || clean.to_uppercase().contains("DISPLAYPORT_EXTERNAL") {
+    if clean == "5"
+        || clean.contains("(5)")
+        || clean.to_uppercase().contains("DISPLAYPORT_EXTERNAL")
+    {
         "DisplayPort (External)".to_string()
     } else if clean == "4" || clean.contains("(4)") || clean.to_uppercase().contains("HDMI") {
         "HDMI".to_string()
-    } else if clean == "12" || clean.contains("(12)") || clean.to_uppercase().contains("DISPLAYPORT") {
+    } else if clean == "12"
+        || clean.contains("(12)")
+        || clean.to_uppercase().contains("DISPLAYPORT")
+    {
         "DisplayPort (Embedded)".to_string()
     } else if clean == "0" || clean.contains("(0)") || clean.to_uppercase().contains("DVI") {
         "DVI".to_string()
@@ -50,7 +56,11 @@ fn clean_display_string(input: &str) -> String {
 /// Prints a comprehensive summary of all available monitor data fields.
 fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
     let friendly_name = clean_display_string(&monitor.friendly_name);
-    let printable_name = if friendly_name.is_empty() { "Generic Display" } else { &friendly_name };
+    let printable_name = if friendly_name.is_empty() {
+        "Generic Display"
+    } else {
+        &friendly_name
+    };
 
     println!("======================================================");
     println!(" MONITOR #{idx} - {printable_name}");
@@ -60,8 +70,14 @@ fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
     println!("  [OS LAYER]");
     println!("  ├─ Target ID:        {}", monitor.target_id);
     println!("  ├─ GDI Name:         {}", monitor.gdi_name);
-    println!("  ├─ Active:           {}", if monitor.is_active { "Yes" } else { "No" });
-    println!("  ├─ Output Tech:      {}", format_output_tech(&monitor.output_tech));
+    println!(
+        "  ├─ Active:           {}",
+        if monitor.is_active { "Yes" } else { "No" }
+    );
+    println!(
+        "  ├─ Output Tech:      {}",
+        format_output_tech(&monitor.output_tech)
+    );
     println!("  └─ Device Path:      {}", monitor.device_path);
 
     // 2. Monitor Topology Information
@@ -76,26 +92,44 @@ fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
     if let Some(data) = &monitor.edid {
         let clean_model = clean_display_string(&data.model_name);
         println!("\n  [HARDWARE IDENTITY (EDID)]");
-        println!("  ├─ Manufacturer:     {} (ID: {})", clean_model, data.manufacturer_id);
+        println!(
+            "  ├─ Manufacturer:     {} (ID: {})",
+            clean_model, data.manufacturer_id
+        );
         println!("  ├─ Product Code:     {}", data.product_code);
         println!("  ├─ Serial (Binary):  {}", data.serial_number_binary);
         if let Some(serial_ascii) = &data.serial_number_ascii {
-            println!("  ├─ Serial (ASCII):   {}", clean_display_string(serial_ascii));
+            println!(
+                "  ├─ Serial (ASCII):   {}",
+                clean_display_string(serial_ascii)
+            );
         }
-        println!("  ├─ Manufacture Date: Week {}, Year {}", data.week_of_manufacture, data.year_of_manufacture);
+        println!(
+            "  ├─ Manufacture Date: Week {}, Year {}",
+            data.week_of_manufacture, data.year_of_manufacture
+        );
 
         match &data.video_interface {
-            VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+            VideoInterfaceInfo::Digital {
+                bit_depth,
+                interface_type,
+            } => {
                 let type_str = match interface_type {
-                    DigitalInterfaceType::Hdmi        => "HDMI",
+                    DigitalInterfaceType::Hdmi => "HDMI",
                     DigitalInterfaceType::DisplayPort => "DisplayPort",
-                    DigitalInterfaceType::Dvi         => "DVI",
-                    DigitalInterfaceType::Unknown     => "Unknown Digital",
+                    DigitalInterfaceType::Dvi => "DVI",
+                    DigitalInterfaceType::Unknown => "Unknown Digital",
                 };
                 println!("  ├─ Interface:        Digital ({type_str}, {bit_depth}-bit)");
             }
-            VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
-                println!("  ├─ Interface:        Analog ({}V, Setup Expected: {})", signal_level_v, setup_expected);
+            VideoInterfaceInfo::Analog {
+                signal_level_v,
+                setup_expected,
+            } => {
+                println!(
+                    "  ├─ Interface:        Analog ({}V, Setup Expected: {})",
+                    signal_level_v, setup_expected
+                );
             }
             VideoInterfaceInfo::Unknown => {
                 println!("  ├─ Interface:        Unknown");
@@ -104,10 +138,22 @@ fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
 
         if let Some(chroma) = &data.chromaticity {
             println!("  ├─ Color Gamut:");
-            println!("  │  ├─ Red:           X={:.4}, Y={:.4}", chroma.red_x, chroma.red_y);
-            println!("  │  ├─ Green:         X={:.4}, Y={:.4}", chroma.green_x, chroma.green_y);
-            println!("  │  ├─ Blue:          X={:.4}, Y={:.4}", chroma.blue_x, chroma.blue_y);
-            println!("  │  └─ White Point:   X={:.4}, Y={:.4}", chroma.white_x, chroma.white_y);
+            println!(
+                "  │  ├─ Red:           X={:.4}, Y={:.4}",
+                chroma.red_x, chroma.red_y
+            );
+            println!(
+                "  │  ├─ Green:         X={:.4}, Y={:.4}",
+                chroma.green_x, chroma.green_y
+            );
+            println!(
+                "  │  ├─ Blue:          X={:.4}, Y={:.4}",
+                chroma.blue_x, chroma.blue_y
+            );
+            println!(
+                "  │  └─ White Point:   X={:.4}, Y={:.4}",
+                chroma.white_x, chroma.white_y
+            );
         }
 
         if !data.audio_caps.short_audio_descriptors.is_empty() {
@@ -123,7 +169,11 @@ fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
                 let interlaced_tag = if mode.interlaced { "i" } else { "" };
                 println!(
                     "  │  └─ Mode #{}: {}x{}{} @ {}Hz",
-                    m_idx + 1, mode.width, mode.height, interlaced_tag, mode.refresh_rate
+                    m_idx + 1,
+                    mode.width,
+                    mode.height,
+                    interlaced_tag,
+                    mode.refresh_rate
                 );
             }
         }
@@ -132,9 +182,15 @@ fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
         let hdr = &data.hdr_caps;
         if hdr.supports_smpte_st2084 || hdr.supports_hlg || hdr.supports_hdr_traditional {
             println!("  ├─ HDR Capabilities:");
-            if hdr.supports_smpte_st2084  { println!("  │  ├─ HDR10 (SMPTE ST 2084)"); }
-            if hdr.supports_hlg           { println!("  │  ├─ Hybrid Log-Gamma (HLG)"); }
-            if hdr.supports_hdr_traditional { println!("  │  ├─ Traditional HDR"); }
+            if hdr.supports_smpte_st2084 {
+                println!("  │  ├─ HDR10 (SMPTE ST 2084)");
+            }
+            if hdr.supports_hlg {
+                println!("  │  ├─ Hybrid Log-Gamma (HLG)");
+            }
+            if hdr.supports_hdr_traditional {
+                println!("  │  ├─ Traditional HDR");
+            }
             if let Some(v) = hdr.max_luminance_cd_m2 {
                 println!("  │  ├─ Max Luminance:  {:.0} cd/m²", v);
             }
@@ -152,8 +208,14 @@ fn print_monitor_summary(idx: usize, monitor: &MonitorDetails) {
     // 4. Hardware Bus Stats (DDC/CI)
     println!("\n  [DDC/CI HARDWARE BUS]");
     if let Some(ddc) = &monitor.ddc_stats {
-        println!("  ├─ Brightness:       Current: {} / Max: {}", ddc.core_caps.brightness, ddc.core_caps.brightness_max);
-        println!("  ├─ Contrast:         Current: {} / Max: {}", ddc.core_caps.contrast, ddc.core_caps.contrast_max);
+        println!(
+            "  ├─ Brightness:       Current: {} / Max: {}",
+            ddc.core_caps.brightness, ddc.core_caps.brightness_max
+        );
+        println!(
+            "  ├─ Contrast:         Current: {} / Max: {}",
+            ddc.core_caps.contrast, ddc.core_caps.contrast_max
+        );
         println!("  ├─ Input Connection: {:?}", ddc.input_source);
         println!("  ├─ Power State:      {:?}", ddc.power_state);
         println!("  ├─ Audio Mute State: {:?}", ddc.audio_mute);

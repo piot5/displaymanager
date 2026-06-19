@@ -8,9 +8,7 @@
 use async_trait::async_trait;
 
 use crate::error::DisplayResult;
-use crate::types::{
-    DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D,
-};
+use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 
 /// Interface for modifying a specific display output's configuration.
 ///
@@ -46,7 +44,8 @@ pub trait OutputEditable {
     ///
     /// Returns [`DisplayError::NotFound`] if the target output was removed
     /// between the initial lookup and this call.
-    fn set_rotation(&mut self, rotation: DisplayRotation) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_rotation(&mut self, rotation: DisplayRotation)
+        -> DisplayResult<&mut dyn OutputEditable>;
 
     /// Sets the active resolution in pixels.
     ///
@@ -107,11 +106,8 @@ pub trait OutputEditable {
     /// Returns [`DisplayError::UnsupportedFeature`] if HDR is not available
     /// on the current backend, or [`DisplayError::UnsupportedHardware`] if the
     /// connected panel is SDR-only.
-    fn set_hdr(
-        &mut self,
-        state: HdrState,
-        mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_hdr(&mut self, state: HdrState, mode: HdrMode)
+        -> DisplayResult<&mut dyn OutputEditable>;
 
     /// Sets the desktop scaling factor.
     ///

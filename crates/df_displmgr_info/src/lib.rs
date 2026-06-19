@@ -39,22 +39,21 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
-/// EDID and DDC/CI type definitions for display hardware.
-pub mod edid_types;
+pub mod backends;
 /// Platform-specific EDID backend implementations.
 pub mod edid_backends;
-/// Trait definitions for EDID data retrieval.
-pub mod edid_trait;
 /// EDID binary data parser.
 pub mod edid_parser;
+/// Trait definitions for EDID data retrieval.
+pub mod edid_trait;
+/// EDID and DDC/CI type definitions for display hardware.
+pub mod edid_types;
 /// Error types for EDID operations.
 pub mod error;
-pub mod backends;
 
-pub use crate::edid_trait::DisplayDevice;
 pub use crate::backends::MonitorDetails;
-pub use crate::edid_types::{MonitorTopology, DeepDdcStats};
-
+pub use crate::edid_trait::DisplayDevice;
+pub use crate::edid_types::{DeepDdcStats, MonitorTopology};
 
 /// Collects all monitor data by delegating to the platform-specific backend.
 ///

@@ -7,7 +7,11 @@ pub use display::{DisplaySubcommand, SetArgs};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "displaymanager_cli", version = "1.0", about = "Unified Display/DDC Manager")]
+#[command(
+    name = "displaymanager_cli",
+    version = "1.0",
+    about = "Unified Display/DDC Manager"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

@@ -12,8 +12,8 @@
 //! lifetimes are correctly managed.
 
 use crate::ddc_trait::DdcControl;
-use crate::error::DdcError;
 use crate::ddc_types::MonitorCapabilities;
+use crate::error::DdcError;
 use windows::Win32::Devices::Display::*;
 use windows::Win32::Foundation::HANDLE;
 
@@ -24,8 +24,13 @@ use windows::Win32::Foundation::HANDLE;
 /// released when this struct is dropped.
 pub struct WindowsBackend {
     /// Physical monitor handle obtained from `GetPhysicalMonitorsFromHMONITOR`.
-    pub handle: isize,
+    pub handle: std::ptr::NonNull<core::ffi::c_void>,
 }
+
+// SAFETY: The handle is owned by this struct and dropped in the Drop impl.
+// The Windows API functions used here are thread-safe for distinct handles.
+unsafe impl Send for WindowsBackend {}
+unsafe impl Sync for WindowsBackend {}
 
 impl Drop for WindowsBackend {
     fn drop(&mut self) {
@@ -36,7 +41,7 @@ impl Drop for WindowsBackend {
         // must not be used again, which is enforced by Rust's ownership model
         // — this is the last use of `self.handle`.
         unsafe {
-            let _ = DestroyPhysicalMonitor(HANDLE(self.handle));
+            let _ = DestroyPhysicalMonitor(HANDLE(self.handle.as_ptr()));
         }
     }
 }
@@ -51,7 +56,7 @@ impl DdcControl for WindowsBackend {
     /// does not support the requested VCP code, or the display has been
     /// disconnected).
     fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError> {
-        let h = HANDLE(self.handle);
+        let h = HANDLE(self.handle.as_ptr());
         let (mut current, mut max) = (0, 0);
 
         // SAFETY: `GetVCPFeatureAndVCPFeatureReply` is called with properly
@@ -76,7 +81,7 @@ impl DdcControl for WindowsBackend {
     /// Returns [`DdcError::CommunicationFailed`] if the underlying
     /// `SetVCPFeature` call fails.
     fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError> {
-        let h = HANDLE(self.handle);
+        let h = HANDLE(self.handle.as_ptr());
 
         // SAFETY: `SetVCPFeature` is called with a valid monitor handle
         // and well-defined parameter values. The handle is guaranteed to
@@ -104,7 +109,7 @@ impl DdcControl for WindowsBackend {
     /// query fails. Contrast is best-effort; if it fails, defaults
     /// of 50/100 are returned.
     fn get_capabilities(&self) -> Result<MonitorCapabilities, DdcError> {
-        let h = HANDLE(self.handle);
+        let h = HANDLE(self.handle.as_ptr());
         let (mut min_b, mut cur_b, mut max_b) = (0, 0, 0);
         let (mut min_c, mut cur_c, mut max_c) = (0, 0, 0);
 

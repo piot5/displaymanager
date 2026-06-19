@@ -24,12 +24,12 @@
 use async_trait::async_trait;
 use std::fmt;
 
+use crate::backends::overlap;
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{
     DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect,
 };
-use crate::backends::overlap;
 
 /// Internal tracking state for a udev-discovered display output.
 #[derive(Debug, Clone)]
@@ -57,8 +57,12 @@ pub struct UdevOutputState {
 }
 
 impl crate::backends::overlap::OverlapCheckable for UdevOutputState {
-    fn is_enabled(&self) -> bool { self.enabled }
-    fn geometry(&self) -> Rect { self.geometry }
+    fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+    fn geometry(&self) -> Rect {
+        self.geometry
+    }
 }
 
 /// Generic Linux udev display topology.

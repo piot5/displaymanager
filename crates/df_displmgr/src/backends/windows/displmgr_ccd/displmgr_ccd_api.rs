@@ -1,20 +1,16 @@
-use windows::Win32::Devices::Display as WinDisplay;
-use windows::Win32::Devices::Display::{
-    DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
-    DISPLAYCONFIG_TARGET_DEVICE_NAME,
-    QDC_ALL_PATHS,
-    SDC_APPLY,
-    SDC_USE_SUPPLIED_DISPLAY_CONFIG,
-    SDC_SAVE_TO_DATABASE,
+use super::displmgr_ccd_sys::{
+    CcdRawData, DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE, DISPLAYCONFIG_MODE_INFO_TYPE_TARGET,
+    DISPLAYCONFIG_PATH_ACTIVE, DISPLAYCONFIG_PATH_MODE_IDX_INVALID,
 };
 use crate::error::{DisplayError, DisplayResult};
-use crate::types::{OutputState, DisplayRotation, HdrState, HdrMode, DisplayId, ConnectorId, AdapterId, DisplayIdentity, Rect, Point2D, Extent2D};
-use super::displmgr_ccd_sys::{
-    DISPLAYCONFIG_PATH_ACTIVE,
-    DISPLAYCONFIG_PATH_MODE_IDX_INVALID,
-    DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE,
-    DISPLAYCONFIG_MODE_INFO_TYPE_TARGET,
-    CcdRawData,
+use crate::types::{
+    AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D, HdrMode,
+    HdrState, OutputState, Point2D, Rect,
+};
+use windows::Win32::Devices::Display as WinDisplay;
+use windows::Win32::Devices::Display::{
+    DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ALL_PATHS,
+    SDC_APPLY, SDC_SAVE_TO_DATABASE, SDC_USE_SUPPLIED_DISPLAY_CONFIG,
 };
 
 /// Information about a display target found via CCD QDC_ALL_PATHS query.
@@ -36,19 +32,20 @@ pub fn query_all_display_targets() -> DisplayResult<Vec<DisplayTargetInfo>> {
     let mut path_count = 0u32;
     let mut mode_count = 0u32;
 
-    unsafe {
-        WinDisplay::GetDisplayConfigBufferSizes(
-            QDC_ALL_PATHS,
-            &mut path_count,
-            &mut mode_count,
-        )
+    let result = unsafe {
+        WinDisplay::GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count)
+    };
+    if result.0 != 0 {
+        return Err(DisplayError::BackendError(format!(
+            "GetDisplayConfigBufferSizes failed: {}",
+            result.0
+        )));
     }
-    .map_err(|e| DisplayError::BackendError(format!("GetDisplayConfigBufferSizes failed: {}", e)))?;
 
     let mut paths = vec![WinDisplay::DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
     let mut modes = vec![WinDisplay::DISPLAYCONFIG_MODE_INFO::default(); mode_count as usize];
 
-    unsafe {
+    let result = unsafe {
         WinDisplay::QueryDisplayConfig(
             QDC_ALL_PATHS,
             &mut path_count,
@@ -57,8 +54,13 @@ pub fn query_all_display_targets() -> DisplayResult<Vec<DisplayTargetInfo>> {
             modes.as_mut_ptr(),
             None,
         )
+    };
+    if result.0 != 0 {
+        return Err(DisplayError::BackendError(format!(
+            "QueryDisplayConfig failed: {}",
+            result.0
+        )));
     }
-    .map_err(|e| DisplayError::BackendError(format!("QueryDisplayConfig failed: {}", e)))?;
 
     paths.truncate(path_count as usize);
 
@@ -85,7 +87,9 @@ pub fn query_all_display_targets() -> DisplayResult<Vec<DisplayTargetInfo>> {
 pub fn find_display_target(query: &str) -> Option<DisplayTargetInfo> {
     let qq = query.to_lowercase();
     let targets = query_all_display_targets().ok()?;
-    targets.into_iter().find(|t| t.friendly_name.to_lowercase().contains(&qq))
+    targets
+        .into_iter()
+        .find(|t| t.friendly_name.to_lowercase().contains(&qq))
 }
 
 /// Performs a CCD-level wake of an inactive display by setting the ACTIVE flag on its path.
@@ -98,30 +102,42 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
         let mut path_count = 0u32;
         let mut mode_count = 0u32;
 
-        WinDisplay::GetDisplayConfigBufferSizes(
-            QDC_ALL_PATHS,
+        let result = WinDisplay::GetDisplayConfigBufferSizes(
+            WinDisplay::QDC_ONLY_ACTIVE_PATHS,
             &mut path_count,
             &mut mode_count,
-        )
-        .map_err(|e| DisplayError::BackendError(format!("GetDisplayConfigBufferSizes failed: {}", e)))?;
+        );
+        if result.0 != 0 {
+            return Err(DisplayError::BackendError(format!(
+                "GetDisplayConfigBufferSizes failed: {}",
+                result.0
+            )));
+        }
 
         let mut paths = vec![WinDisplay::DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
         let mut modes = vec![WinDisplay::DISPLAYCONFIG_MODE_INFO::default(); mode_count as usize];
 
-        WinDisplay::QueryDisplayConfig(
-            QDC_ALL_PATHS,
+        let result = WinDisplay::QueryDisplayConfig(
+            WinDisplay::QDC_ONLY_ACTIVE_PATHS,
             &mut path_count,
             paths.as_mut_ptr(),
             &mut mode_count,
             modes.as_mut_ptr(),
             None,
-        )
-        .map_err(|e| DisplayError::BackendError(format!("QueryDisplayConfig failed: {}", e)))?;
+        );
+        if result.0 != 0 {
+            return Err(DisplayError::BackendError(format!(
+                "QueryDisplayConfig failed: {}",
+                result.0
+            )));
+        }
 
         paths.truncate(path_count as usize);
 
         // Find the path with the matching target_id
-        let idx = paths.iter().position(|p| p.targetInfo.id == target_id)
+        let idx = paths
+            .iter()
+            .position(|p| p.targetInfo.id == target_id)
             .ok_or_else(|| DisplayError::NotFound(DisplayId(target_id.to_string())))?;
 
         // Check if already active
@@ -132,9 +148,10 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
         // Verify the path has a valid source mode index (required for wake)
         let src_idx = paths[idx].sourceInfo.Anonymous.modeInfoIdx;
         if src_idx == DISPLAYCONFIG_PATH_MODE_IDX_INVALID {
-            return Err(DisplayError::BackendError(
-                format!("Target {} has no valid source mode index, cannot wake", target_id)
-            ));
+            return Err(DisplayError::BackendError(format!(
+                "Target {} has no valid source mode index, cannot wake",
+                target_id
+            )));
         }
 
         // Set the ACTIVE flag
@@ -148,9 +165,10 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
         );
 
         if status != 0 {
-            return Err(DisplayError::BackendError(
-                format!("SetDisplayConfig wake failed for target {}: 0x{:08X}", target_id, status as u32)
-            ));
+            return Err(DisplayError::BackendError(format!(
+                "SetDisplayConfig wake failed for target {}: 0x{:08X}",
+                target_id, status as u32
+            )));
         }
 
         Ok(true)
@@ -164,10 +182,7 @@ pub fn map_win32_code(result: windows::core::Result<()>) -> DisplayResult<()> {
 
 /// Retrieves the friendly name of a display target from the Windows CCD subsystem.
 /// Falls back to a synthesized ID if the monitor name cannot be queried.
-pub fn get_target_name(
-    adapter_id: windows::Win32::Foundation::LUID,
-    target_id: u32,
-) -> String {
+pub fn get_target_name(adapter_id: windows::Win32::Foundation::LUID, target_id: u32) -> String {
     let mut payload = DISPLAYCONFIG_TARGET_DEVICE_NAME {
         header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
             r#type: DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
@@ -178,11 +193,8 @@ pub fn get_target_name(
         ..Default::default()
     };
 
-    let status = unsafe {
-        WinDisplay::DisplayConfigGetDeviceInfo(
-            &mut payload.header as *mut _ as *mut _,
-        )
-    };
+    let status =
+        unsafe { WinDisplay::DisplayConfigGetDeviceInfo(&mut payload.header as *mut _ as *mut _) };
 
     // Extract the friendly name if available
     if status == 0 && payload.monitorFriendlyDeviceName[0] != 0 {
@@ -205,20 +217,25 @@ pub fn query_config_sync() -> DisplayResult<(CcdRawData, Vec<OutputState>)> {
     let mut mode_count = 0u32;
 
     // Retrieve buffer sizes required for CCD structures
-    unsafe {
+    let result = unsafe {
         WinDisplay::GetDisplayConfigBufferSizes(
             WinDisplay::QDC_ONLY_ACTIVE_PATHS,
             &mut path_count,
             &mut mode_count,
         )
+    };
+    if result.0 != 0 {
+        return Err(DisplayError::BackendError(format!(
+            "GetDisplayConfigBufferSizes failed: {}",
+            result.0
+        )));
     }
-    .map_err(|e| DisplayError::BackendError(format!("GetDisplayConfigBufferSizes failed: {}", e)))?;
 
     // Allocate and populate path and mode buffers
     let mut paths = vec![WinDisplay::DISPLAYCONFIG_PATH_INFO::default(); path_count as usize];
     let mut modes = vec![WinDisplay::DISPLAYCONFIG_MODE_INFO::default(); mode_count as usize];
 
-    unsafe {
+    let result = unsafe {
         WinDisplay::QueryDisplayConfig(
             WinDisplay::QDC_ONLY_ACTIVE_PATHS,
             &mut path_count,
@@ -227,8 +244,13 @@ pub fn query_config_sync() -> DisplayResult<(CcdRawData, Vec<OutputState>)> {
             modes.as_mut_ptr(),
             None,
         )
+    };
+    if result.0 != 0 {
+        return Err(DisplayError::BackendError(format!(
+            "QueryDisplayConfig failed: {}",
+            result.0
+        )));
     }
-    .map_err(|e| DisplayError::BackendError(format!("QueryDisplayConfig failed: {}", e)))?;
 
     // Trim buffers to actual counts
     paths.truncate(path_count as usize);
@@ -303,7 +325,8 @@ fn map_path_to_output(
                 let v = mode.Anonymous.targetMode.targetVideoSignalInfo.vSyncFreq;
                 if v.Denominator != 0 {
                     // Convert from fraction (Hz) to millihertz
-                    state.refresh_rate = ((v.Numerator as u64 * 1000) / v.Denominator as u64) as u32;
+                    state.refresh_rate =
+                        ((v.Numerator as u64 * 1000) / v.Denominator as u64) as u32;
                 }
             }
         }
@@ -311,7 +334,7 @@ fn map_path_to_output(
 
     // Extract rotation from the target info
     state.rotation = match path.targetInfo.rotation {
-        WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE90  => DisplayRotation::Rotate90,
+        WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE90 => DisplayRotation::Rotate90,
         WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE180 => DisplayRotation::Rotate180,
         WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE270 => DisplayRotation::Rotate270,
         _ => DisplayRotation::Rotate0,

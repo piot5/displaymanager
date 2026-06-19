@@ -1,7 +1,7 @@
 use crate::edid_trait::EdidControl;
 use crate::error::EdidError;
-use windows::Win32::Devices::Display::*;
 use std::mem::size_of;
+use windows::Win32::Devices::Display::*;
 
 /// EDID backend that locates the active path through the Windows CCD API
 /// and then delegates the actual EDID read to the registry backend.
@@ -20,7 +20,9 @@ impl EdidControl for WindowsCcdBackend {
             let mut path_count = 0;
             let mut mode_count = 0;
 
-            if GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count).is_err() {
+            if GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &mut path_count, &mut mode_count)
+                .is_err()
+            {
                 return Err(EdidError::CommunicationFailed);
             }
 
@@ -34,7 +36,9 @@ impl EdidControl for WindowsCcdBackend {
                 &mut mode_count,
                 modes.as_mut_ptr(),
                 None,
-            ).is_err() {
+            )
+            .is_err()
+            {
                 return Err(EdidError::CommunicationFailed);
             }
 

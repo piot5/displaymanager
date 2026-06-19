@@ -1,7 +1,7 @@
 //! Example: List all display outputs and their current state.
 
-use df_displmgr::NativeTopology;
 use df_displmgr::traits::UniversalTopology;
+use df_displmgr::NativeTopology;
 
 #[tokio::main]
 async fn main() -> df_displmgr::DisplayResult<()> {
@@ -15,14 +15,13 @@ async fn main() -> df_displmgr::DisplayResult<()> {
 
     println!("Found {} output(s):", outputs.len());
     for out in &outputs {
-        println!(
-            "\n  ID: {}",
-            out.identity.id.0
-        );
+        println!("\n  ID: {}", out.identity.id.0);
         println!("  Name: {}", out.identity.monitor_name);
         println!(
             "  Resolution: {}x{} @ {} Hz",
-            out.geometry.size.width, out.geometry.size.height, out.refresh_rate_hz()
+            out.geometry.size.width,
+            out.geometry.size.height,
+            out.refresh_rate_hz()
         );
         println!(
             "  Position: ({}, {})",

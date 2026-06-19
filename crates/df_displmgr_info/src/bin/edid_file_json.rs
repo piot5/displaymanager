@@ -1,9 +1,9 @@
+use df_displmgr_info::edid_types::{DigitalInterfaceType, VideoInterfaceInfo};
+use df_displmgr_info::{collect_monitor_data, MonitorDetails};
+use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use serde::Serialize;
-use df_displmgr_info::{collect_monitor_data, MonitorDetails};
-use df_displmgr_info::edid_types::{VideoInterfaceInfo, DigitalInterfaceType};
 
 // JSON data structures
 
@@ -103,11 +103,17 @@ struct DdcCiSchema {
 mod formatters {
     pub fn format_output_tech(tech_str: &str) -> String {
         let clean = tech_str.trim();
-        if clean == "5" || clean.contains("(5)") || clean.to_uppercase().contains("DISPLAYPORT_EXTERNAL") {
+        if clean == "5"
+            || clean.contains("(5)")
+            || clean.to_uppercase().contains("DISPLAYPORT_EXTERNAL")
+        {
             "DisplayPort (External)".to_string()
         } else if clean == "4" || clean.contains("(4)") || clean.to_uppercase().contains("HDMI") {
             "HDMI".to_string()
-        } else if clean == "12" || clean.contains("(12)") || clean.to_uppercase().contains("DISPLAYPORT") {
+        } else if clean == "12"
+            || clean.contains("(12)")
+            || clean.to_uppercase().contains("DISPLAYPORT")
+        {
             "DisplayPort (Embedded)".to_string()
         } else if clean == "0" || clean.contains("(0)") || clean.to_uppercase().contains("DVI") {
             "DVI".to_string()
@@ -146,7 +152,11 @@ mod formatters {
 
 fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSchema {
     let friendly_name = formatters::clean_display_string(&monitor.friendly_name);
-    let printable_name = if friendly_name.is_empty() { "Generic Display".to_string() } else { friendly_name };
+    let printable_name = if friendly_name.is_empty() {
+        "Generic Display".to_string()
+    } else {
+        friendly_name
+    };
 
     let os_layer = OsLayerSchema {
         target_id: monitor.target_id,
@@ -167,17 +177,26 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
         let manufacturer = format!("{} (ID: {})", clean_model, data.manufacturer_id);
 
         let interface = match &data.video_interface {
-            VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+            VideoInterfaceInfo::Digital {
+                bit_depth,
+                interface_type,
+            } => {
                 let type_str = match interface_type {
-                    DigitalInterfaceType::Hdmi        => "HDMI",
+                    DigitalInterfaceType::Hdmi => "HDMI",
                     DigitalInterfaceType::DisplayPort => "DisplayPort",
-                    DigitalInterfaceType::Dvi         => "DVI",
-                    DigitalInterfaceType::Unknown     => "Unknown Digital",
+                    DigitalInterfaceType::Dvi => "DVI",
+                    DigitalInterfaceType::Unknown => "Unknown Digital",
                 };
                 format!("Digital ({type_str}, {bit_depth}-bit)")
             }
-            VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
-                format!("Analog ({}V, Setup Expected: {})", signal_level_v, setup_expected)
+            VideoInterfaceInfo::Analog {
+                signal_level_v,
+                setup_expected,
+            } => {
+                format!(
+                    "Analog ({}V, Setup Expected: {})",
+                    signal_level_v, setup_expected
+                )
             }
             VideoInterfaceInfo::Unknown => "Unknown".to_string(),
         };
@@ -199,23 +218,34 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
             let interlaced_tag = if mode.interlaced { "i" } else { "" };
             supported_display_modes.push(format!(
                 "Mode #{}: {}x{}{} @ {}Hz",
-                m_idx + 1, mode.width, mode.height, interlaced_tag, mode.refresh_rate
+                m_idx + 1,
+                mode.width,
+                mode.height,
+                interlaced_tag,
+                mode.refresh_rate
             ));
         }
 
         // Fall back to the topology resolution when EDID timings are absent.
         if supported_display_modes.is_empty() {
             if let Some(topo) = &monitor.topology {
-                supported_display_modes.push(format!("Mode #1: {}x{} @ 60Hz", topo.width, topo.height));
+                supported_display_modes
+                    .push(format!("Mode #1: {}x{} @ 60Hz", topo.width, topo.height));
             }
         }
 
         let mut hdr_capabilities = Vec::new();
         let hdr = &data.hdr_caps;
         if hdr.supports_smpte_st2084 || hdr.supports_hlg || hdr.supports_hdr_traditional {
-            if hdr.supports_smpte_st2084    { hdr_capabilities.push("HDR10 (SMPTE ST 2084)".to_string()); }
-            if hdr.supports_hlg             { hdr_capabilities.push("Hybrid Log-Gamma (HLG)".to_string()); }
-            if hdr.supports_hdr_traditional { hdr_capabilities.push("Traditional HDR".to_string()); }
+            if hdr.supports_smpte_st2084 {
+                hdr_capabilities.push("HDR10 (SMPTE ST 2084)".to_string());
+            }
+            if hdr.supports_hlg {
+                hdr_capabilities.push("Hybrid Log-Gamma (HLG)".to_string());
+            }
+            if hdr.supports_hdr_traditional {
+                hdr_capabilities.push("Traditional HDR".to_string());
+            }
             if let Some(v) = hdr.max_luminance_cd_m2 {
                 hdr_capabilities.push(format!("Max Luminance:  {:.0} cd/m^2", v));
             }
@@ -231,8 +261,14 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
             manufacturer,
             product_code: data.product_code,
             serial_binary: data.serial_number_binary,
-            serial_ascii: data.serial_number_ascii.as_ref().map(|s| formatters::clean_display_string(s)),
-            manufacture_date: format!("Week {}, Year {}", data.week_of_manufacture, data.year_of_manufacture),
+            serial_ascii: data
+                .serial_number_ascii
+                .as_ref()
+                .map(|s| formatters::clean_display_string(s)),
+            manufacture_date: format!(
+                "Week {}, Year {}",
+                data.week_of_manufacture, data.year_of_manufacture
+            ),
             interface,
             color_gamut,
             audio_capabilities,
@@ -243,12 +279,22 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
     });
 
     let ddc_ci_hardware_bus = if let Some(ddc) = &monitor.ddc_stats {
-        let audio_volume = ddc.volume.as_ref().map(|v| format!("Current: {} / Max: {}", v.0, v.1));
-        let rgb_hardware_gain = ddc.color_gains.as_ref().map(|(r, g, b)| format!("R:{} G:{} B:{}", r, g, b));
+        let audio_volume = ddc
+            .volume
+            .as_ref()
+            .map(|v| format!("Current: {} / Max: {}", v.0, v.1));
+        let rgb_hardware_gain = ddc
+            .color_gains
+            .as_ref()
+            .map(|(r, g, b)| format!("R:{} G:{} B:{}", r, g, b));
 
         // Frequency scaling matches edid_file_txt.rs (Hz -> kHz, centiHz -> Hz).
-        let horizontal_freq = ddc.horizontal_freq_hz.map(|h_freq| format!("{:.2} kHz", h_freq as f64 / 1000.0));
-        let vertical_freq = ddc.vertical_freq_centihz.map(|v_freq| format!("{:.2} Hz", v_freq as f64 / 100.0));
+        let horizontal_freq = ddc
+            .horizontal_freq_hz
+            .map(|h_freq| format!("{:.2} kHz", h_freq as f64 / 1000.0));
+        let vertical_freq = ddc
+            .vertical_freq_centihz
+            .map(|v_freq| format!("{:.2} Hz", v_freq as f64 / 100.0));
 
         let operating_time = ddc.operating_hours.map(|hours| format!("{} Hours", hours));
         let osd_language_code = ddc.osd_language_code.map(|lang| format!("0x{:X}", lang));
@@ -256,8 +302,14 @@ fn transform_monitor_data(idx: usize, monitor: &MonitorDetails) -> MonitorJsonSc
 
         DdcCiSchema {
             status: "Available".to_string(),
-            brightness: Some(format!("Current: {} / Max: {}", ddc.core_caps.brightness, ddc.core_caps.brightness_max)),
-            contrast: Some(format!("Current: {} / Max: {}", ddc.core_caps.contrast, ddc.core_caps.contrast_max)),
+            brightness: Some(format!(
+                "Current: {} / Max: {}",
+                ddc.core_caps.brightness, ddc.core_caps.brightness_max
+            )),
+            contrast: Some(format!(
+                "Current: {} / Max: {}",
+                ddc.core_caps.contrast, ddc.core_caps.contrast_max
+            )),
             input_connection: Some(format!("{:?}", ddc.input_source)),
             power_state: Some(format!("{:?}", ddc.power_state)),
             audio_mute_state: Some(format!("{:?}", ddc.audio_mute)),
@@ -323,12 +375,10 @@ impl JsonDumper {
                     Ok(json_string) => {
                         let path = Path::new(filename);
                         match File::create(path) {
-                            Ok(mut file) => {
-                                match file.write_all(json_string.as_bytes()) {
-                                    Ok(_) => println!("Wrote JSON to '{}'.", filename),
-                                    Err(e) => eprintln!("Write failed: {:?}", e),
-                                }
-                            }
+                            Ok(mut file) => match file.write_all(json_string.as_bytes()) {
+                                Ok(_) => println!("Wrote JSON to '{}'.", filename),
+                                Err(e) => eprintln!("Write failed: {:?}", e),
+                            },
                             Err(e) => eprintln!("Could not create '{}': {:?}", filename, e),
                         }
                     }

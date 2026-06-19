@@ -18,15 +18,29 @@ fn make_test_edid_data() -> EdidData {
             interface_type: DigitalInterfaceType::Hdmi,
         },
         chromaticity: Some(ChromaticityCoordinates {
-            red_x: 0.64, red_y: 0.33,
-            green_x: 0.30, green_y: 0.60,
-            blue_x: 0.15, blue_y: 0.06,
-            white_x: 0.312, white_y: 0.329,
+            red_x: 0.64,
+            red_y: 0.33,
+            green_x: 0.30,
+            green_y: 0.60,
+            blue_x: 0.15,
+            blue_y: 0.06,
+            white_x: 0.312,
+            white_y: 0.329,
         }),
         extension_blocks: 1,
         modes: vec![
-            MonitorMode { width: 1920, height: 1080, refresh_rate: 60, interlaced: false },
-            MonitorMode { width: 2560, height: 1440, refresh_rate: 144, interlaced: false },
+            MonitorMode {
+                width: 1920,
+                height: 1080,
+                refresh_rate: 60,
+                interlaced: false,
+            },
+            MonitorMode {
+                width: 2560,
+                height: 1440,
+                refresh_rate: 144,
+                interlaced: false,
+            },
         ],
         hdr_caps: HdrMetadata::default(),
         audio_caps: AudioCapabilities::default(),
@@ -49,7 +63,12 @@ fn test_edid_data_fields() {
 
 #[test]
 fn test_monitor_mode_fields() {
-    let m = MonitorMode { width: 1920, height: 1080, refresh_rate: 60, interlaced: false };
+    let m = MonitorMode {
+        width: 1920,
+        height: 1080,
+        refresh_rate: 60,
+        interlaced: false,
+    };
     assert_eq!(m.width, 1920);
     assert_eq!(m.height, 1080);
     assert_eq!(m.refresh_rate, 60);
@@ -75,7 +94,10 @@ fn test_monitor_topology_fields() {
 #[test]
 fn test_monitor_topology_serialization() {
     let t = MonitorTopology {
-        x: 100, y: 200, width: 3840, height: 2160,
+        x: 100,
+        y: 200,
+        width: 3840,
+        height: 2160,
         rotation: "Rotate90".into(),
     };
     let json = serde_json::to_string(&t).unwrap();
@@ -162,10 +184,14 @@ fn test_video_interface_info_debug() {
 #[test]
 fn test_chromaticity_coordinates() {
     let c = ChromaticityCoordinates {
-        red_x: 0.640, red_y: 0.330,
-        green_x: 0.300, green_y: 0.600,
-        blue_x: 0.150, blue_y: 0.060,
-        white_x: 0.312, white_y: 0.329,
+        red_x: 0.640,
+        red_y: 0.330,
+        green_x: 0.300,
+        green_y: 0.600,
+        blue_x: 0.150,
+        blue_y: 0.060,
+        white_x: 0.312,
+        white_y: 0.329,
     };
     assert!((c.red_x - 0.640).abs() < f32::EPSILON);
     assert!((c.white_y - 0.329).abs() < f32::EPSILON);
@@ -232,8 +258,10 @@ fn test_edid_data_serialization_roundtrip() {
 fn test_deep_ddc_stats_serialization() {
     let s = DeepDdcStats {
         core_caps: MonitorCapabilities {
-            brightness: 50, brightness_max: 100,
-            contrast: 70, contrast_max: 100,
+            brightness: 50,
+            brightness_max: 100,
+            contrast: 70,
+            contrast_max: 100,
         },
         input_source: InputSource::Hdmi1,
         power_state: PowerState::On,
@@ -259,7 +287,10 @@ fn test_deep_ddc_stats_serialization() {
 
 #[test]
 fn test_digital_interface_type_variants() {
-    assert_ne!(DigitalInterfaceType::Hdmi, DigitalInterfaceType::DisplayPort);
+    assert_ne!(
+        DigitalInterfaceType::Hdmi,
+        DigitalInterfaceType::DisplayPort
+    );
     assert_ne!(DigitalInterfaceType::Dvi, DigitalInterfaceType::Unknown);
 }
 

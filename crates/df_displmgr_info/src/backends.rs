@@ -1,5 +1,5 @@
 //! Platform-specific backend implementations for display enumeration and monitor data collection.
-//! 
+//!
 //! This module abstracts away platform-specific complexity (unsafe Windows/Linux API calls)
 //! and provides a unified, safe interface for collecting monitor topology and statistics.
 
@@ -49,12 +49,12 @@ pub fn get_platform_enumerator() -> Box<dyn MonitorEnumerator> {
     {
         Box::new(windows::WindowsMonitorEnumerator)
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         Box::new(linux::LinuxMonitorEnumerator)
     }
-    
+
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         compile_error!("Unsupported platform. Only Windows and Linux are supported.");

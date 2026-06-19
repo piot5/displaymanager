@@ -131,7 +131,7 @@ fn test_error_display_trait() {
         DisplayError::Timeout { timeout_ms: 100 },
         DisplayError::Serialization("test".into()),
     ];
-    
+
     // All errors should be displayable
     for err in errors {
         let _ = format!("{}", err);
@@ -152,11 +152,11 @@ fn test_display_result_type() {
     fn example_ok() -> df_displmgr::DisplayResult<String> {
         Ok("success".to_string())
     }
-    
+
     fn example_err() -> df_displmgr::DisplayResult<String> {
         Err(DisplayError::ConnectionFailed)
     }
-    
+
     assert!(example_ok().is_ok());
     assert!(example_err().is_err());
 }
@@ -171,12 +171,12 @@ fn test_error_propagation() {
             Ok(())
         }
     }
-    
+
     fn propagate(fail: bool) -> df_displmgr::DisplayResult<()> {
         might_fail(fail)?;
         Ok(())
     }
-    
+
     assert!(propagate(false).is_ok());
     assert!(propagate(true).is_err());
 }
@@ -189,7 +189,7 @@ fn test_error_matching() {
         DisplayError::StaleTopology,
         DisplayError::PermissionDenied,
     ];
-    
+
     for err in errors {
         match err {
             DisplayError::ConnectionFailed => assert!(true),
@@ -204,12 +204,12 @@ fn test_error_matching() {
 #[test]
 fn test_error_with_display_ids() {
     let ids = vec!["HDMI-1", "DP-1", "eDP-1", "VGA-1"];
-    
+
     for id_str in ids {
         let id = DisplayId(id_str.to_string());
         let err = DisplayError::NotFound(id.clone());
         assert!(err.to_string().contains(id_str));
-        
+
         let err2 = DisplayError::OutputDisabled(id);
         assert!(err2.to_string().contains(id_str));
     }
@@ -219,9 +219,11 @@ fn test_error_with_display_ids() {
 #[test]
 fn test_timeout_various_values() {
     let timeouts = vec![0, 1, 100, 1000, 60000];
-    
+
     for timeout in timeouts {
-        let err = DisplayError::Timeout { timeout_ms: timeout };
+        let err = DisplayError::Timeout {
+            timeout_ms: timeout,
+        };
         let err_str = err.to_string();
         assert!(err_str.contains(&timeout.to_string()));
     }
@@ -231,10 +233,10 @@ fn test_timeout_various_values() {
 #[test]
 fn test_io_error_conversion() {
     use std::io;
-    
+
     let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
     let display_err: df_displmgr::DisplayError = io_err.into();
-    
+
     match display_err {
         df_displmgr::DisplayError::Io(_) => assert!(true),
         _ => panic!("Expected Io error variant"),
@@ -250,10 +252,14 @@ fn test_error_messages_descriptive() {
         (DisplayError::StaleTopology, "re-acquire"),
         (DisplayError::PermissionDenied, "privileges"),
     ];
-    
+
     for (err, expected_text) in test_cases {
         let err_str = err.to_string();
-        assert!(err_str.contains(expected_text), 
-            "Error message '{}' should contain '{}'", err_str, expected_text);
+        assert!(
+            err_str.contains(expected_text),
+            "Error message '{}' should contain '{}'",
+            err_str,
+            expected_text
+        );
     }
 }

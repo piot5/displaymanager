@@ -42,8 +42,8 @@ use async_trait::async_trait;
 use std::fmt;
 
 use crate::error::{DisplayError, DisplayResult};
-use crate::traits::{UniversalTopology, OutputEditable};
-use crate::types::{OutputState, DisplayId};
+use crate::traits::{OutputEditable, UniversalTopology};
+use crate::types::{DisplayId, OutputState};
 
 /// Full Wayland/wlroots implementation using the zwlr-output-management-v1 protocol.
 ///
@@ -207,10 +207,18 @@ impl UniversalTopology for LinuxTopology {
 
     fn set_persistence(&mut self, enabled: bool) -> &mut Self {
         match self {
-            Self::Wlr(inner) => { inner.set_persistence(enabled); }
-            Self::Drm(inner) => { inner.set_persistence(enabled); }
-            Self::Kde(inner) => { inner.set_persistence(enabled); }
-            Self::Udev(inner) => { inner.set_persistence(enabled); }
+            Self::Wlr(inner) => {
+                inner.set_persistence(enabled);
+            }
+            Self::Drm(inner) => {
+                inner.set_persistence(enabled);
+            }
+            Self::Kde(inner) => {
+                inner.set_persistence(enabled);
+            }
+            Self::Udev(inner) => {
+                inner.set_persistence(enabled);
+            }
         }
         self
     }

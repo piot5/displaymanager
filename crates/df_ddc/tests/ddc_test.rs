@@ -1,6 +1,6 @@
-use df_ddc::ddc_trait::{DisplayDevice, DdcControl};
-use df_ddc::ddc_types::{PowerState, InputSource, VcpCode};
 use df_ddc::ddc_backends::ddc_debug::DebugBackend;
+use df_ddc::ddc_trait::{DdcControl, DisplayDevice};
+use df_ddc::ddc_types::{InputSource, PowerState, VcpCode};
 use df_ddc::error::DdcError;
 use df_ddc::list_monitors;
 use std::sync::Arc;
@@ -32,7 +32,9 @@ fn test_exhaustive_ddc_success_path() {
 struct FailBackend;
 impl DdcControl for FailBackend {
     fn get_vcp_feature(&self, _: u8) -> Result<(u32, u32), DdcError> {
-        Err(DdcError::CommunicationFailed { reason: "Timeout".into() })
+        Err(DdcError::CommunicationFailed {
+            reason: "Timeout".into(),
+        })
     }
     fn set_vcp_feature(&self, _: u8, _: u32) -> Result<(), DdcError> {
         Err(DdcError::UnsupportedFeature)
@@ -49,7 +51,9 @@ fn test_library_error_propagation() {
     // Check that get_capabilities correctly wraps backend errors
     let caps_result = fail_device.inner.get_capabilities();
     match caps_result {
-        Err(DdcError::CommunicationFailed { .. }) => println!("LOG: Error mapping (communication) is correct."),
+        Err(DdcError::CommunicationFailed { .. }) => {
+            println!("LOG: Error mapping (communication) is correct.")
+        }
         _ => panic!("Expected CommunicationError was not raised"),
     }
     // Check UnsupportedFeature for set operations
@@ -62,7 +66,7 @@ fn test_library_error_propagation() {
 fn test_system_enumeration() {
     // This test checks whether the lib.rs logic works on the current OS
     let monitors = list_monitors();
-    
+
     println!("LOG: Found {} monitor(s) in the system.", monitors.len());
     for m in &monitors {
         println!(" - Found: {}", m.info);
@@ -87,7 +91,10 @@ fn test_multithreaded_access() {
     for h in handles {
         h.join().unwrap();
     }
-    
+
     let (final_val, _) = backend.get_vcp_feature(VcpCode::Brightness as u8).unwrap();
-    println!("LOG: Thread-safe access succeeded. Last value: {}", final_val);
+    println!(
+        "LOG: Thread-safe access succeeded. Last value: {}",
+        final_val
+    );
 }

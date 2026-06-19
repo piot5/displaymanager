@@ -22,12 +22,12 @@
 use async_trait::async_trait;
 use std::fmt;
 
+use crate::backends::overlap;
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{
     DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect,
 };
-use crate::backends::overlap;
 
 /// Internal tracking state for a KDE display output.
 #[derive(Debug, Clone)]
@@ -59,8 +59,12 @@ pub struct KdeOutputState {
 }
 
 impl crate::backends::overlap::OverlapCheckable for KdeOutputState {
-    fn is_enabled(&self) -> bool { self.enabled }
-    fn geometry(&self) -> Rect { self.geometry }
+    fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+    fn geometry(&self) -> Rect {
+        self.geometry
+    }
 }
 
 /// KDE Plasma / KScreen display topology.

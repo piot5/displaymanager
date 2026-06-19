@@ -1,7 +1,12 @@
 use df_displmgr_info::edid_parser::EdidParser;
-use df_displmgr_info::edid_types::{VideoInterfaceInfo, DigitalInterfaceType};
+use df_displmgr_info::edid_types::{DigitalInterfaceType, VideoInterfaceInfo};
 
-fn make_base_edid(model_name: &str, mfg_bytes: [u8; 2], video_input_byte: u8, extension_count: u8) -> Vec<u8> {
+fn make_base_edid(
+    model_name: &str,
+    mfg_bytes: [u8; 2],
+    video_input_byte: u8,
+    extension_count: u8,
+) -> Vec<u8> {
     let mut raw = vec![0u8; 128];
     raw[0..8].copy_from_slice(&[0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00]);
     raw[8] = mfg_bytes[0];
@@ -67,8 +72,14 @@ fn make_cea_extension(audio_descriptors: &[(u8, u8)], hdr_eotf: u8, hdr_max_lum:
     ext
 }
 
-fn make_full_edid(model_name: &str, mfg_bytes: [u8; 2], video_input: u8,
-                  audio_descriptors: &[(u8, u8)], hdr_eotf: u8, hdr_max_lum: u8) -> Vec<u8> {
+fn make_full_edid(
+    model_name: &str,
+    mfg_bytes: [u8; 2],
+    video_input: u8,
+    audio_descriptors: &[(u8, u8)],
+    hdr_eotf: u8,
+    hdr_max_lum: u8,
+) -> Vec<u8> {
     let mut edid = make_base_edid(model_name, mfg_bytes, video_input, 1);
     let ext = make_cea_extension(audio_descriptors, hdr_eotf, hdr_max_lum);
     edid.extend_from_slice(&ext);
@@ -95,7 +106,14 @@ fn test_parse_extension_with_audio() {
 
 #[test]
 fn test_parse_extension_with_multiple_audio() {
-    let edid = make_full_edid("MultiAudio", [0x00, 0x00], 0x82, &[(2, 1), (7, 5)], 0x06, 50);
+    let edid = make_full_edid(
+        "MultiAudio",
+        [0x00, 0x00],
+        0x82,
+        &[(2, 1), (7, 5)],
+        0x06,
+        50,
+    );
     let data = EdidParser::parse(&edid).unwrap();
     assert_eq!(data.audio_caps.short_audio_descriptors.len(), 2);
     assert!(data.audio_caps.short_audio_descriptors[0].contains("AC-3"));
@@ -316,7 +334,10 @@ fn test_parse_digital_displayport() {
     raw[127] = sum.wrapping_neg();
     let data = EdidParser::parse(&raw).unwrap();
     match data.video_interface {
-        VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+        VideoInterfaceInfo::Digital {
+            bit_depth,
+            interface_type,
+        } => {
             assert_eq!(bit_depth, 8);
             assert!(matches!(interface_type, DigitalInterfaceType::DisplayPort));
         }
@@ -332,7 +353,10 @@ fn test_parse_digital_dvi() {
     raw[127] = sum.wrapping_neg();
     let data = EdidParser::parse(&raw).unwrap();
     match data.video_interface {
-        VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+        VideoInterfaceInfo::Digital {
+            bit_depth,
+            interface_type,
+        } => {
             assert_eq!(bit_depth, 8);
             assert!(matches!(interface_type, DigitalInterfaceType::Dvi));
         }
@@ -348,7 +372,10 @@ fn test_parse_digital_unknown_interface() {
     raw[127] = sum.wrapping_neg();
     let data = EdidParser::parse(&raw).unwrap();
     match data.video_interface {
-        VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+        VideoInterfaceInfo::Digital {
+            bit_depth,
+            interface_type,
+        } => {
             assert_eq!(bit_depth, 8);
             assert!(matches!(interface_type, DigitalInterfaceType::Unknown));
         }
@@ -358,19 +385,17 @@ fn test_parse_digital_unknown_interface() {
 
 #[test]
 fn test_parse_analog_signal_levels() {
-    for (byte, expected_level) in [
-        (0x00, 0.700),
-        (0x20, 0.714),
-        (0x40, 1.000),
-        (0x60, 0.700),
-    ] {
+    for (byte, expected_level) in [(0x00, 0.700), (0x20, 0.714), (0x40, 1.000), (0x60, 0.700)] {
         let mut raw = make_base_edid("Analog", [0x00, 0x00], 0x82, 0);
         raw[20] = byte;
         let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
         raw[127] = sum.wrapping_neg();
         let data = EdidParser::parse(&raw).unwrap();
         match data.video_interface {
-            VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
+            VideoInterfaceInfo::Analog {
+                signal_level_v,
+                setup_expected,
+            } => {
                 assert!((signal_level_v - expected_level).abs() < 0.001);
                 assert!(!setup_expected);
             }
@@ -387,7 +412,10 @@ fn test_parse_analog_setup_expected() {
     raw[127] = sum.wrapping_neg();
     let data = EdidParser::parse(&raw).unwrap();
     match data.video_interface {
-        VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
+        VideoInterfaceInfo::Analog {
+            signal_level_v,
+            setup_expected,
+        } => {
             assert!((signal_level_v - 0.714).abs() < 0.001);
             assert!(setup_expected);
         }
@@ -470,5 +498,5 @@ fn test_parse_chromaticity_nonzero() {
     raw[127] = sum.wrapping_neg();
     let data = EdidParser::parse(&raw).unwrap();
     let chroma = data.chromaticity.unwrap();
-    assert!((chroma.red_x - 9.0/1024.0).abs() < 0.001);
+    assert!((chroma.red_x - 9.0 / 1024.0).abs() < 0.001);
 }

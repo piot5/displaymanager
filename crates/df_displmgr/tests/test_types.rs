@@ -40,7 +40,13 @@ fn test_point2d_default() {
 fn test_rect_default() {
     let r = Rect::default();
     assert_eq!(r.origin, Point2D { x: 0, y: 0 });
-    assert_eq!(r.size, Extent2D { width: 0, height: 0 });
+    assert_eq!(
+        r.size,
+        Extent2D {
+            width: 0,
+            height: 0
+        }
+    );
 }
 
 #[test]
@@ -81,7 +87,10 @@ fn test_output_state_default() {
 fn test_output_state_is_landscape() {
     // Landscape (normal)
     let mut o = OutputState::default();
-    o.geometry.size = Extent2D { width: 1920, height: 1080 };
+    o.geometry.size = Extent2D {
+        width: 1920,
+        height: 1080,
+    };
     assert!(o.is_landscape());
 
     // Portrait (rotated 90)
@@ -90,7 +99,10 @@ fn test_output_state_is_landscape() {
 
     // Landscape inverted (180)
     o.rotation = DisplayRotation::Rotate180;
-    o.geometry.size = Extent2D { width: 1920, height: 1080 };
+    o.geometry.size = Extent2D {
+        width: 1920,
+        height: 1080,
+    };
     assert!(o.is_landscape());
 }
 
@@ -126,7 +138,10 @@ fn test_activation_plan_default() {
 fn test_activation_plan_with_values() {
     let p = ActivationPlan {
         position: Some(Point2D { x: 100, y: 200 }),
-        resolution: Some(Extent2D { width: 2560, height: 1440 }),
+        resolution: Some(Extent2D {
+            width: 2560,
+            height: 1440,
+        }),
         rotation: Some(DisplayRotation::Rotate90),
     };
     assert_eq!(p.position.unwrap().x, 100);
@@ -174,9 +189,27 @@ fn test_display_id_serialization_roundtrip() {
 fn test_output_state_supported_modes() {
     let mut o = OutputState::default();
     o.supported_modes = vec![
-        VideoMode { resolution: Extent2D { width: 1920, height: 1080 }, refresh_rate: 60000 },
-        VideoMode { resolution: Extent2D { width: 2560, height: 1440 }, refresh_rate: 144000 },
-        VideoMode { resolution: Extent2D { width: 3840, height: 2160 }, refresh_rate: 60000 },
+        VideoMode {
+            resolution: Extent2D {
+                width: 1920,
+                height: 1080,
+            },
+            refresh_rate: 60000,
+        },
+        VideoMode {
+            resolution: Extent2D {
+                width: 2560,
+                height: 1440,
+            },
+            refresh_rate: 144000,
+        },
+        VideoMode {
+            resolution: Extent2D {
+                width: 3840,
+                height: 2160,
+            },
+            refresh_rate: 60000,
+        },
     ];
     assert_eq!(o.supported_modes.len(), 3);
     assert_eq!(o.supported_modes[1].refresh_rate, 144000);

@@ -2,12 +2,12 @@
 
 use std::fs;
 
+use super::{MonitorDetails, MonitorEnumerator};
 use crate::edid_backends::edid_linux_ddc::LinuxDdcBackend;
 use crate::edid_backends::edid_linux_sys::LinuxSysfsBackend;
-use crate::edid_trait::EdidControl;
 use crate::edid_parser::EdidParser;
+use crate::edid_trait::EdidControl;
 use crate::error::EdidError;
-use super::{MonitorEnumerator, MonitorDetails};
 
 /// Linux monitor enumerator using sysfs and ddcutil.
 pub struct LinuxMonitorEnumerator;

@@ -2,12 +2,13 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use windows::Win32::Devices::Display as WinDisplay;
 use windows::Win32::Devices::Display::{
-    SetDisplayConfig, SDC_APPLY, SDC_SAVE_TO_DATABASE, SDC_VALIDATE, SDC_USE_SUPPLIED_DISPLAY_CONFIG,
+    SetDisplayConfig, SDC_APPLY, SDC_SAVE_TO_DATABASE, SDC_USE_SUPPLIED_DISPLAY_CONFIG,
+    SDC_VALIDATE,
 };
 
 use crate::error::{DisplayError, DisplayResult};
-use crate::traits::{UniversalTopology, OutputEditable};
-use crate::types::{OutputState, HdrState, HdrMode, DisplayId};
+use crate::traits::{OutputEditable, UniversalTopology};
+use crate::types::{DisplayId, HdrMode, HdrState, OutputState};
 
 /// CCD API functions for querying and configuring display targets.
 pub mod displmgr_ccd_api;
@@ -25,10 +26,7 @@ pub use self::displmgr_ccd_sys::*;
 
 // Re-export CCD-level display management functions from the API module
 pub use self::displmgr_ccd_api::{
-    DisplayTargetInfo,
-    query_all_display_targets,
-    find_display_target,
-    ccd_wake_display,
+    ccd_wake_display, find_display_target, query_all_display_targets, DisplayTargetInfo,
 };
 
 /// CCD (Connecting and Configuring Displays) topology implementation.
@@ -74,7 +72,9 @@ impl UniversalTopology for CcdTopology {
     }
 
     fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
-        let target_id = id.0.parse::<u32>().map_err(|_| DisplayError::NotFound(id.clone()))?;
+        let target_id =
+            id.0.parse::<u32>()
+                .map_err(|_| DisplayError::NotFound(id.clone()))?;
         if !self.data.paths.iter().any(|p| p.targetInfo.id == target_id) {
             return Err(DisplayError::NotFound(id.clone()));
         }
@@ -89,50 +89,81 @@ impl UniversalTopology for CcdTopology {
 
     async fn validate(&self) -> DisplayResult<()> {
         let has_work = self.dirty || !self.staged_scales.is_empty() || !self.staged_hdr.is_empty();
-        if !has_work || self.data.paths.is_empty() { return Ok(()); }
+        if !has_work || self.data.paths.is_empty() {
+            return Ok(());
+        }
 
         // Phase 1: Geometric collision detection
-        let active_outputs: Vec<&OutputState> = self.outputs.iter()
-            .filter(|o| o.enabled && o.geometry.size.width > 0 && o.geometry.size.height > 0).collect();
+        let active_outputs: Vec<&OutputState> = self
+            .outputs
+            .iter()
+            .filter(|o| o.enabled && o.geometry.size.width > 0 && o.geometry.size.height > 0)
+            .collect();
 
         for i in 0..active_outputs.len() {
             for j in (i + 1)..active_outputs.len() {
                 let (o1, o2) = (active_outputs[i], active_outputs[j]);
-                if o1.geometry.origin.x < o2.geometry.origin.x + o2.geometry.size.width as i32 &&
-                   o1.geometry.origin.x + o1.geometry.size.width as i32 > o2.geometry.origin.x &&
-                   o1.geometry.origin.y < o2.geometry.origin.y + o2.geometry.size.height as i32 &&
-                   o1.geometry.origin.y + o1.geometry.size.height as i32 > o2.geometry.origin.y {
+                if o1.geometry.origin.x < o2.geometry.origin.x + o2.geometry.size.width as i32
+                    && o1.geometry.origin.x + o1.geometry.size.width as i32 > o2.geometry.origin.x
+                    && o1.geometry.origin.y < o2.geometry.origin.y + o2.geometry.size.height as i32
+                    && o1.geometry.origin.y + o1.geometry.size.height as i32 > o2.geometry.origin.y
+                {
                     return Err(DisplayError::ConfigurationRejected);
                 }
             }
         }
 
         // Phase 2: Kernel validation
-        let status = unsafe { SetDisplayConfig(Some(&self.data.paths), Some(&self.data.modes), SDC_VALIDATE | SDC_USE_SUPPLIED_DISPLAY_CONFIG) };
-        if status != 0 { return Err(DisplayError::ConfigurationRejected); }
+        let status = unsafe {
+            SetDisplayConfig(
+                Some(&self.data.paths),
+                Some(&self.data.modes),
+                SDC_VALIDATE | SDC_USE_SUPPLIED_DISPLAY_CONFIG,
+            )
+        };
+        if status != 0 {
+            return Err(DisplayError::ConfigurationRejected);
+        }
         Ok(())
     }
 
     async fn commit(&mut self) -> DisplayResult<()> {
-        if !self.dirty && self.staged_scales.is_empty() && self.staged_hdr.is_empty() { return Ok(()); }
-        if self.data.paths.is_empty() { return Ok(()); }
+        if !self.dirty && self.staged_scales.is_empty() && self.staged_hdr.is_empty() {
+            return Ok(());
+        }
+        if self.data.paths.is_empty() {
+            return Ok(());
+        }
 
         self.validate().await?;
 
         let mut flags = SDC_APPLY | SDC_USE_SUPPLIED_DISPLAY_CONFIG;
-        if self.persist { flags |= SDC_SAVE_TO_DATABASE; }
+        if self.persist {
+            flags |= SDC_SAVE_TO_DATABASE;
+        }
 
         if self.dirty {
-            let status = unsafe { SetDisplayConfig(Some(&self.data.paths), Some(&self.data.modes), flags) };
+            let status =
+                unsafe { SetDisplayConfig(Some(&self.data.paths), Some(&self.data.modes), flags) };
             if status != 0 {
-                self.staged_scales.clear(); self.staged_hdr.clear(); self.dirty = false;
-                return Err(DisplayError::BackendError(format!("SetDisplayConfig failed: {}", status)));
+                self.staged_scales.clear();
+                self.staged_hdr.clear();
+                self.dirty = false;
+                return Err(DisplayError::BackendError(format!(
+                    "SetDisplayConfig failed: {}",
+                    status
+                )));
             }
         }
 
         // Out-of-band: DPI Scaling & HDR
         for (&target_id, &scale) in &self.staged_scales {
-            if let Some(path) = self.data.paths.iter().find(|p| p.targetInfo.id == target_id) {
+            if let Some(path) = self
+                .data
+                .paths
+                .iter()
+                .find(|p| p.targetInfo.id == target_id)
+            {
                 let mut payload = DISPLAYCONFIG_SOURCE_DPI_SCALE_SET {
                     header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
                         r#type: DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE,
@@ -142,12 +173,21 @@ impl UniversalTopology for CcdTopology {
                     },
                     scale_factor_as_percent: scale,
                 };
-                unsafe { let _ = WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _); }
+                unsafe {
+                    let _ = WinDisplay::DisplayConfigSetDeviceInfo(
+                        &mut payload.header as *mut _ as *mut _,
+                    );
+                }
             }
         }
 
         for (&target_id, &(hdr_state, _)) in &self.staged_hdr {
-            if let Some(path) = self.data.paths.iter().find(|p| p.targetInfo.id == target_id) {
+            if let Some(path) = self
+                .data
+                .paths
+                .iter()
+                .find(|p| p.targetInfo.id == target_id)
+            {
                 let mut payload = DISPLAYCONFIG_SET_HDR_STATE {
                     header: WinDisplay::DISPLAYCONFIG_DEVICE_INFO_HEADER {
                         r#type: DISPLAYCONFIG_DEVICE_INFO_SET_HDR_STATE,
@@ -157,13 +197,20 @@ impl UniversalTopology for CcdTopology {
                     },
                     enabled: if hdr_state == HdrState::Enabled { 1 } else { 0 },
                 };
-                unsafe { let _ = WinDisplay::DisplayConfigSetDeviceInfo(&mut payload.header as *mut _ as *mut _); }
+                unsafe {
+                    let _ = WinDisplay::DisplayConfigSetDeviceInfo(
+                        &mut payload.header as *mut _ as *mut _,
+                    );
+                }
             }
         }
 
-        self.staged_scales.clear(); self.staged_hdr.clear(); self.dirty = false;
+        self.staged_scales.clear();
+        self.staged_hdr.clear();
+        self.dirty = false;
         if let Ok((raw_data, outputs)) = query_config_sync() {
-            self.data = raw_data; self.outputs = outputs;
+            self.data = raw_data;
+            self.outputs = outputs;
         }
         Ok(())
     }

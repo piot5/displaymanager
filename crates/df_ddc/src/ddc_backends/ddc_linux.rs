@@ -85,7 +85,12 @@ impl LinuxBackend {
         // there is no safe alternative in userspace.
         unsafe {
             const I2C_SLAVE: libc::c_ulong = 0x0703;
-            if libc::ioctl(file.as_raw_fd(), I2C_SLAVE, Self::DDC_I2C_ADDR as libc::c_ulong) < 0 {
+            if libc::ioctl(
+                file.as_raw_fd(),
+                I2C_SLAVE,
+                Self::DDC_I2C_ADDR as libc::c_ulong,
+            ) < 0
+            {
                 return Err(DdcError::CommunicationFailed {
                     reason: format!("I2C_SLAVE ioctl failed for {}", self.path),
                 });
@@ -120,7 +125,12 @@ impl DdcControl for LinuxBackend {
     /// out or the monitor's response is malformed.
     fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError> {
         // Ensure only one thread communicates with the monitor at a time
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self
+            .lock
+            .lock()
+            .map_err(|_| DdcError::CommunicationFailed {
+                reason: "Mutex lock poisoned in linux backend (get_vcp_feature)".to_string(),
+            })?;
 
         let mut file = self.open_device()?;
         let mut request = [Self::HOST_ADDRESS, 0x82, 0x01, code, 0x00];
@@ -156,7 +166,12 @@ impl DdcControl for LinuxBackend {
     ///
     /// Returns [`DdcError::CommunicationFailed`] if the I²C write fails.
     fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError> {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self
+            .lock
+            .lock()
+            .map_err(|_| DdcError::CommunicationFailed {
+                reason: "Mutex lock poisoned in linux backend (set_vcp_feature)".to_string(),
+            })?;
 
         let mut file = self.open_device()?;
         let mut request = [
@@ -170,11 +185,10 @@ impl DdcControl for LinuxBackend {
         ];
         request[6] = self.calculate_checksum(&request[..6]);
 
-        file.write_all(&request).map_err(|e| {
-            DdcError::CommunicationFailed {
+        file.write_all(&request)
+            .map_err(|e| DdcError::CommunicationFailed {
                 reason: format!("I2C write error: {}", e),
-            }
-        })?;
+            })?;
 
         // Monitor needs time to process the command before the next one arrives
         thread::sleep(Self::WRITE_DELAY);

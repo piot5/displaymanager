@@ -1,16 +1,18 @@
-use crate::edid_types::{MonitorCapabilities, VcpCode, InputSource, PowerState, AudioMuteState, DeepDdcStats};
-use crate::error::EdidError;
-use windows::Win32::Graphics::Gdi::HMONITOR;
-use windows::Win32::Devices::Display::{
-    GetNumberOfPhysicalMonitorsFromHMONITOR, GetPhysicalMonitorsFromHMONITOR,
-    DestroyPhysicalMonitors, GetVCPFeatureAndVCPFeatureReply, SetVCPFeature,
-    PHYSICAL_MONITOR, GetMonitorBrightness, GetMonitorContrast,
+use crate::edid_types::{
+    AudioMuteState, DeepDdcStats, InputSource, MonitorCapabilities, PowerState, VcpCode,
 };
+use crate::error::EdidError;
+use windows::Win32::Devices::Display::{
+    DestroyPhysicalMonitors, GetMonitorBrightness, GetMonitorContrast,
+    GetNumberOfPhysicalMonitorsFromHMONITOR, GetPhysicalMonitorsFromHMONITOR,
+    GetVCPFeatureAndVCPFeatureReply, SetVCPFeature, PHYSICAL_MONITOR,
+};
+use windows::Win32::Graphics::Gdi::HMONITOR;
 
 /// DDC/CI backend for querying deep hardware telemetry via Win32 Monitor Configuration API.
 pub struct WindowsDdcBackend {
     /// HMONITOR handle for the display device.
-    pub h_monitor: isize,
+    pub h_monitor: *mut core::ffi::c_void,
 }
 
 impl WindowsDdcBackend {
@@ -43,7 +45,9 @@ impl WindowsDdcBackend {
             let mut b_max = 0u32;
             // GetMonitorBrightness returns BOOL (i32), not a Result — nonzero = success
             if GetMonitorBrightness(h_phys, &mut b_min, &mut b_curr, &mut b_max) == 0 {
-                return Err(EdidError::DdcError("GetMonitorBrightness failed".to_string()));
+                return Err(EdidError::DdcError(
+                    "GetMonitorBrightness failed".to_string(),
+                ));
             }
 
             let mut c_min = 0u32;
@@ -173,7 +177,9 @@ impl WindowsDdcBackend {
             let _ = DestroyPhysicalMonitors(&physical_monitors);
 
             if result == 0 {
-                Err(EdidError::DdcError("Failed to execute SetVCPFeature call".to_string()))
+                Err(EdidError::DdcError(
+                    "Failed to execute SetVCPFeature call".to_string(),
+                ))
             } else {
                 Ok(())
             }

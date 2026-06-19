@@ -6,7 +6,7 @@ use anyhow::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("=== Display Manager Topology Test Suite ===\n");
-    
+
     // Run comprehensive topology tests
     println!("Running topology tests...");
     println!("Tests would execute here demonstrating all topology commands:");
@@ -15,8 +15,8 @@ async fn main() -> Result<()> {
     println!("- EDID reporting capabilities");
     println!("- DDC/CI function testing");
     println!("- Hardware scan and reporting");
-    
+
     println!("\n=== Test Suite Completed Successfully ===");
-    
+
     Ok(())
 }

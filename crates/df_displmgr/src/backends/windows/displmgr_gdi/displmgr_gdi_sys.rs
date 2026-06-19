@@ -4,7 +4,9 @@
 //! Provides [`to_wide`], [`from_wide`], [`create_empty_devmode`], and
 //! the [`gdi_flags`] module with staging/flush flag constants.
 
-use windows::Win32::Graphics::Gdi::{DEVMODEW, CDS_TYPE, CDS_UPDATEREGISTRY, CDS_NORESET, CDS_SET_PRIMARY};
+use windows::Win32::Graphics::Gdi::{
+    CDS_NORESET, CDS_SET_PRIMARY, CDS_TYPE, CDS_UPDATEREGISTRY, DEVMODEW,
+};
 
 /// Converts a standard Rust string slice (`&str`) into a null-terminated
 /// UTF-16 wide string (`Vec<u16>`) required for Win32 FFI interactions.
@@ -41,9 +43,8 @@ pub mod gdi_flags {
 
     /// Flags required to register and promote a monitor as the Primary Display
     /// inside the registry without immediately resetting the hardware.
-    pub const STAGE_PRIMARY_FLAGS: CDS_TYPE = CDS_TYPE(
-        CDS_UPDATEREGISTRY.0 | CDS_NORESET.0 | CDS_SET_PRIMARY.0,
-    );
+    pub const STAGE_PRIMARY_FLAGS: CDS_TYPE =
+        CDS_TYPE(CDS_UPDATEREGISTRY.0 | CDS_NORESET.0 | CDS_SET_PRIMARY.0);
 
     /// Flags for the final global flush step.
     ///

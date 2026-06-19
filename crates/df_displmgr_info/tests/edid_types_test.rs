@@ -1,7 +1,7 @@
 use df_displmgr_info::edid_types::{
-    MonitorCapabilities, PowerState, InputSource, AudioMuteState,
-    DigitalInterfaceType, VideoInterfaceInfo, MonitorMode, ChromaticityCoordinates,
-    HdrMetadata, AudioCapabilities, EdidData, DeepDdcStats, VcpCode,
+    AudioCapabilities, AudioMuteState, ChromaticityCoordinates, DeepDdcStats, DigitalInterfaceType,
+    EdidData, HdrMetadata, InputSource, MonitorCapabilities, MonitorMode, PowerState, VcpCode,
+    VideoInterfaceInfo,
 };
 
 /// Test MonitorCapabilities serialization
@@ -13,11 +13,11 @@ fn test_monitor_capabilities_serialization() {
         contrast: 50,
         contrast_max: 100,
     };
-    
+
     let json = serde_json::to_string(&caps).unwrap();
     assert!(json.contains("brightness"));
     assert!(json.contains("contrast"));
-    
+
     let parsed: MonitorCapabilities = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.brightness, 75);
     assert_eq!(parsed.contrast, 50);
@@ -38,7 +38,7 @@ fn test_power_state_variants() {
 fn test_power_state_serialization() {
     let json = serde_json::to_string(&PowerState::On).unwrap();
     assert_eq!(json, "\"On\"");
-    
+
     let parsed: PowerState = serde_json::from_str("\"Off\"").unwrap();
     assert_eq!(parsed, PowerState::Off);
 }
@@ -63,7 +63,7 @@ fn test_input_source_serialization_roundtrip() {
         InputSource::DisplayPort1,
         InputSource::UsbC,
     ];
-    
+
     for v in variants {
         let json = serde_json::to_string(&v).unwrap();
         let parsed: InputSource = serde_json::from_str(&json).unwrap();
@@ -83,7 +83,10 @@ fn test_audio_mute_state_variants() {
 #[test]
 fn test_digital_interface_type_variants() {
     assert_eq!(DigitalInterfaceType::Hdmi, DigitalInterfaceType::Hdmi);
-    assert_eq!(DigitalInterfaceType::DisplayPort, DigitalInterfaceType::DisplayPort);
+    assert_eq!(
+        DigitalInterfaceType::DisplayPort,
+        DigitalInterfaceType::DisplayPort
+    );
     assert_eq!(DigitalInterfaceType::Dvi, DigitalInterfaceType::Dvi);
     assert_eq!(DigitalInterfaceType::Unknown, DigitalInterfaceType::Unknown);
 }
@@ -95,9 +98,12 @@ fn test_video_interface_digital() {
         bit_depth: 8,
         interface_type: DigitalInterfaceType::Hdmi,
     };
-    
+
     match info {
-        VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+        VideoInterfaceInfo::Digital {
+            bit_depth,
+            interface_type,
+        } => {
             assert_eq!(bit_depth, 8);
             assert!(matches!(interface_type, DigitalInterfaceType::Hdmi));
         }
@@ -112,9 +118,12 @@ fn test_video_interface_analog() {
         signal_level_v: 0.700,
         setup_expected: true,
     };
-    
+
     match info {
-        VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
+        VideoInterfaceInfo::Analog {
+            signal_level_v,
+            setup_expected,
+        } => {
             assert!((signal_level_v - 0.700).abs() < 0.001);
             assert!(setup_expected);
         }
@@ -138,7 +147,7 @@ fn test_monitor_mode_fields() {
         refresh_rate: 60,
         interlaced: false,
     };
-    
+
     assert_eq!(mode.width, 1920);
     assert_eq!(mode.height, 1080);
     assert_eq!(mode.refresh_rate, 60);
@@ -154,10 +163,10 @@ fn test_monitor_mode_serialization() {
         refresh_rate: 144,
         interlaced: false,
     };
-    
+
     let json = serde_json::to_string(&mode).unwrap();
     let parsed: MonitorMode = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.width, 2560);
     assert_eq!(parsed.refresh_rate, 144);
 }
@@ -175,7 +184,7 @@ fn test_chromaticity_coordinates() {
         white_x: 0.313,
         white_y: 0.329,
     };
-    
+
     assert!((chroma.red_x - 0.640).abs() < 0.001);
     assert!((chroma.green_y - 0.600).abs() < 0.001);
     assert!((chroma.blue_x - 0.150).abs() < 0.001);
@@ -204,7 +213,7 @@ fn test_hdr_metadata_with_values() {
         max_frame_average_luminance_cd_m2: Some(400.0),
         min_luminance_cd_m2: Some(0.1),
     };
-    
+
     assert!(hdr.supports_smpte_st2084);
     assert!(!hdr.supports_hlg);
     assert_eq!(hdr.max_luminance_cd_m2, Some(1000.0));
@@ -227,7 +236,7 @@ fn test_audio_capabilities_with_values() {
         "Linear PCM (channels: 2)".to_string(),
         "AC-3 / Dolby Digital (channels: 5)".to_string(),
     ];
-    
+
     assert_eq!(audio.extra_audio_descriptors_count, 2);
     assert_eq!(audio.short_audio_descriptors.len(), 2);
 }
@@ -253,7 +262,7 @@ fn test_edid_data_fields() {
         hdr_caps: HdrMetadata::default(),
         audio_caps: AudioCapabilities::default(),
     };
-    
+
     assert_eq!(edid.model_name, "TestMonitor");
     assert_eq!(edid.manufacturer_id, "DEL");
     assert_eq!(edid.year_of_manufacture, 2020);
@@ -281,10 +290,10 @@ fn test_edid_data_serialization_roundtrip() {
         hdr_caps: HdrMetadata::default(),
         audio_caps: AudioCapabilities::default(),
     };
-    
+
     let json = serde_json::to_string(&edid).unwrap();
     let parsed: EdidData = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.model_name, edid.model_name);
     assert_eq!(parsed.manufacturer_id, edid.manufacturer_id);
     assert_eq!(parsed.product_code, edid.product_code);
@@ -311,7 +320,7 @@ fn test_deep_ddc_stats_fields() {
         osd_language_code: Some(0x656E), // English
         panel_type_code: Some(1),
     };
-    
+
     assert_eq!(stats.core_caps.brightness, 80);
     assert_eq!(stats.input_source, InputSource::Hdmi1);
     assert_eq!(stats.power_state, PowerState::On);
@@ -340,10 +349,10 @@ fn test_deep_ddc_stats_serialization() {
         osd_language_code: None,
         panel_type_code: None,
     };
-    
+
     let json = serde_json::to_string(&stats).unwrap();
     let parsed: DeepDdcStats = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.input_source, InputSource::DisplayPort1);
     assert_eq!(parsed.power_state, PowerState::On);
 }
@@ -385,21 +394,21 @@ fn test_monitor_capabilities_equality() {
         contrast: 75,
         contrast_max: 100,
     };
-    
+
     let caps2 = MonitorCapabilities {
         brightness: 50,
         brightness_max: 100,
         contrast: 75,
         contrast_max: 100,
     };
-    
+
     let caps3 = MonitorCapabilities {
         brightness: 60,
         brightness_max: 100,
         contrast: 75,
         contrast_max: 100,
     };
-    
+
     assert_eq!(caps1, caps2);
     assert_ne!(caps1, caps3);
 }
@@ -434,8 +443,12 @@ fn test_audio_mute_state_equality() {
 #[test]
 fn test_digital_interface_type_equality() {
     assert_eq!(DigitalInterfaceType::Hdmi, DigitalInterfaceType::Hdmi);
-    assert_eq!(DigitalInterfaceType::DisplayPort, DigitalInterfaceType::DisplayPort);
-    assert_ne!(DigitalInterfaceType::Hdmi, DigitalInterfaceType::DisplayPort);
+    assert_eq!(
+        DigitalInterfaceType::DisplayPort,
+        DigitalInterfaceType::DisplayPort
+    );
+    assert_ne!(
+        DigitalInterfaceType::Hdmi,
+        DigitalInterfaceType::DisplayPort
+    );
 }
-
-

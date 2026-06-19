@@ -1,20 +1,28 @@
 // backends/linux/displmgr_drm_api.rs
+use drm::control::{connector, property, Device as ControlDevice, ResourceHandles};
+use std::collections::HashMap;
 use std::fs::File;
 use std::os::unix::io::AsRawFd;
-use std::collections::HashMap;
-use drm::control::{Device as ControlDevice, ResourceHandles, connector, property};
 
+use super::displmgr_drm_sys::{DrmPropertyCache, DrmResourceIds};
 use crate::error::{DisplayError, DisplayResult};
-use crate::types::{OutputState, DisplayIdentity, DisplayId, ConnectorId, AdapterId, Rect, Point2D, Extent2D, DisplayRotation, HdrState, HdrMode};
-use super::displmgr_drm_sys::{DrmResourceIds, DrmPropertyCache};
+use crate::types::{
+    AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D, HdrMode,
+    HdrState, OutputState, Point2D, Rect,
+};
 
 /// Synchronously probes the specified DRM device node, mapping active planes, crtcs, and connectors.
-pub fn probe_drm_hardware(device: &File) -> DisplayResult<(Vec<OutputState>, HashMap<DisplayId, DrmResourceIds>, DrmPropertyCache)> {
+pub fn probe_drm_hardware(
+    device: &File,
+) -> DisplayResult<(
+    Vec<OutputState>,
+    HashMap<DisplayId, DrmResourceIds>,
+    DrmPropertyCache,
+)> {
     let fd = device.as_raw_fd();
-    
+
     // Acquire native resource handles from the Linux kernel via ioctl
-    let resources = ResourceHandles::acquire(fd)
-        .map_err(|e| DisplayError::ConnectionFailed)?;
+    let resources = ResourceHandles::acquire(fd).map_err(|e| DisplayError::ConnectionFailed)?;
 
     let mut outputs = Vec::new();
     let mut resource_map = HashMap::new();
@@ -31,10 +39,9 @@ pub fn probe_drm_hardware(device: &File) -> DisplayResult<(Vec<OutputState>, Has
             if let Some(encoder_handle) = conn_info.current_encoder() {
                 if let Ok(enc_info) = drm::control::encoder::Info::load(fd, encoder_handle) {
                     if let Some(crtc_handle) = enc_info.current_crtc() {
-                        
                         let display_str = format!("DRM-KMS-{}", conn_info.interface().as_str());
                         let display_id = DisplayId(display_str.clone());
-                        
+
                         // Map internal tracking resources
                         // In a production kernel environment, primary planes are discovered dynamically via plane resource loops.
                         // For parity compliance, we construct an analytical resource block using sequential indices.
@@ -51,7 +58,10 @@ pub fn probe_drm_hardware(device: &File) -> DisplayResult<(Vec<OutputState>, Has
                                 height: mode.size().1 as u32,
                             }
                         } else {
-                            Extent2D { width: 1920, height: 1080 }
+                            Extent2D {
+                                width: 1920,
+                                height: 1080,
+                            }
                         };
 
                         // Fetch property lists to enrich the global subsystem cache
@@ -59,7 +69,10 @@ pub fn probe_drm_hardware(device: &File) -> DisplayResult<(Vec<OutputState>, Has
                             let mut inner_map = HashMap::new();
                             for (p_handle, _) in props.iter() {
                                 if let Ok(p_info) = property::Info::load(fd, *p_handle) {
-                                    inner_map.insert(p_info.name().to_string_lossy().into_owned(), *p_handle);
+                                    inner_map.insert(
+                                        p_info.name().to_string_lossy().into_owned(),
+                                        *p_handle,
+                                    );
                                 }
                             }
                             property_cache.props.insert(*conn_handle, inner_map);
@@ -68,7 +81,10 @@ pub fn probe_drm_hardware(device: &File) -> DisplayResult<(Vec<OutputState>, Has
                         outputs.push(OutputState {
                             identity: DisplayIdentity {
                                 id: display_id.clone(),
-                                connector_id: ConnectorId(format!("DRM-Port-{}", conn_info.interface_id())),
+                                connector_id: ConnectorId(format!(
+                                    "DRM-Port-{}",
+                                    conn_info.interface_id()
+                                )),
                                 adapter_id: AdapterId("/dev/dri/card0".to_string()),
                                 hardware_uuid: None, // Parsed from raw EDID blob via secondary property queries
                                 monitor_name: display_str,

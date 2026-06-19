@@ -1,19 +1,19 @@
 // backends/linux/displmgr_drm_sys.rs
-use drm::control::{property, connector, crtc, plane};
-use std::collections::HashMap;
 use crate::types::DisplayRotation;
+use drm::control::{connector, crtc, plane, property};
+use std::collections::HashMap;
 
 /// Legacy DRM rotation bit-mask definitions matching kernel property expectations.
-pub const DRM_MODE_ROTATE_0: u64   = 1 << 0;
-pub const DRM_MODE_ROTATE_90: u64  = 1 << 1;
+pub const DRM_MODE_ROTATE_0: u64 = 1 << 0;
+pub const DRM_MODE_ROTATE_90: u64 = 1 << 1;
 pub const DRM_MODE_ROTATE_180: u64 = 1 << 2;
 pub const DRM_MODE_ROTATE_270: u64 = 1 << 3;
 
 /// Maps core framework abstraction rotations to raw Linux DRM atomic property values.
 pub fn rotation_to_drm_value(rotation: DisplayRotation) -> u64 {
     match rotation {
-        DisplayRotation::Rotate0   => DRM_MODE_ROTATE_0,
-        DisplayRotation::Rotate90  => DRM_MODE_ROTATE_90,
+        DisplayRotation::Rotate0 => DRM_MODE_ROTATE_0,
+        DisplayRotation::Rotate90 => DRM_MODE_ROTATE_90,
         DisplayRotation::Rotate180 => DRM_MODE_ROTATE_180,
         DisplayRotation::Rotate270 => DRM_MODE_ROTATE_270,
     }

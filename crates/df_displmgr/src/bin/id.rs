@@ -1,5 +1,5 @@
-use df_displmgr::{NativeTopology, UniversalTopology};
 use df_displmgr::error::DisplayResult;
+use df_displmgr::{NativeTopology, UniversalTopology};
 
 #[tokio::main]
 async fn main() -> DisplayResult<()> {

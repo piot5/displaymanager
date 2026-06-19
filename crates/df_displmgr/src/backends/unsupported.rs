@@ -11,9 +11,7 @@ use async_trait::async_trait;
 
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::{OutputEditable, UniversalTopology};
-use crate::types::{
-    DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D,
-};
+use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 
 /// Stub topology for unsupported platforms.
 ///
@@ -39,19 +37,13 @@ impl OutputEditable for StubOutputEditor {
         ))
     }
 
-    fn set_resolution(
-        &mut self,
-        _extent: Extent2D,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(&mut self, _extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
         Err(DisplayError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_position(
-        &mut self,
-        _position: Point2D,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(&mut self, _position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
         Err(DisplayError::UnsupportedFeature(
             "platform not supported".into(),
         ))
@@ -91,10 +83,7 @@ impl OutputEditable for StubOutputEditor {
         ))
     }
 
-    fn clone_from(
-        &mut self,
-        _source_id: &DisplayId,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(&mut self, _source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
         Err(DisplayError::UnsupportedFeature(
             "platform not supported".into(),
         ))

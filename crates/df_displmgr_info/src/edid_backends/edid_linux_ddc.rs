@@ -18,7 +18,9 @@ impl EdidControl for LinuxDdcBackend {
 
         // DDC is prone to failure: 3 attempts with increasing delay
         for attempt in 0..3 {
-            if attempt > 0 { thread::sleep(Duration::from_millis(200 * attempt)); }
+            if attempt > 0 {
+                thread::sleep(Duration::from_millis(200 * attempt));
+            }
 
             let output = Command::new("ddcutil")
                 .args(["-b", &target_bus, "getedid", "--hex", "--noverify"])
@@ -27,20 +29,25 @@ impl EdidControl for LinuxDdcBackend {
             if let Ok(out) = output {
                 if out.status.success() {
                     let raw = self.parse_hex(&String::from_utf8_lossy(&out.stdout));
-                    if raw.len() >= 128 { return Ok(raw); }
+                    if raw.len() >= 128 {
+                        return Ok(raw);
+                    }
                 }
             }
         }
-        
+
         Err(EdidError::CommunicationFailed)
     }
 }
 
 impl LinuxDdcBackend {
     fn find_first_ddc_bus(&self) -> Result<String, EdidError> {
-        let out = Command::new("ddcutil").arg("detect").output().map_err(|_| EdidError::BackendNotAvailable)?;
+        let out = Command::new("ddcutil")
+            .arg("detect")
+            .output()
+            .map_err(|_| EdidError::BackendNotAvailable)?;
         let stdout = String::from_utf8_lossy(&out.stdout);
-        
+
         // Search for pattern "I2C bus: /dev/i2c-X"
         for line in stdout.lines() {
             if line.contains("I2C bus:") {

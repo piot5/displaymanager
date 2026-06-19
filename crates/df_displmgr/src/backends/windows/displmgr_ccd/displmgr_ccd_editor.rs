@@ -1,14 +1,8 @@
 // ── Imports ──────────────────────────────────────────────────────────────────
-use super::{
-    CcdTopology,
-    DISPLAYCONFIG_PATH_ACTIVE,
-    DISPLAYCONFIG_PATH_MODE_IDX_INVALID,
-};
+use super::{CcdTopology, DISPLAYCONFIG_PATH_ACTIVE, DISPLAYCONFIG_PATH_MODE_IDX_INVALID};
 use crate::error::{DisplayError, DisplayResult};
 use crate::traits::OutputEditable;
-use crate::types::{
-    DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D,
-};
+use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 use windows::Win32::Devices::Display as WinDisplay;
 
 // ── Editor struct ─────────────────────────────────────────────────────────────
@@ -18,14 +12,17 @@ use windows::Win32::Devices::Display as WinDisplay;
 /// Implements [`OutputEditable`] to provide a builder-style API
 /// for modifying display properties before committing.
 pub struct CcdOutputEditor<'a> {
-    pub(crate) topology:   &'a mut CcdTopology,
-    pub(crate) target_id:  u32,
+    pub(crate) topology: &'a mut CcdTopology,
+    pub(crate) target_id: u32,
 }
 
 impl<'a> CcdOutputEditor<'a> {
     /// Creates a new editor for the specified CCD target.
     pub fn new(topology: &'a mut CcdTopology, target_id: u32) -> Self {
-        Self { topology, target_id }
+        Self {
+            topology,
+            target_id,
+        }
     }
 }
 
@@ -65,8 +62,8 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         }
         let path = find_path!(self)?;
         path.targetInfo.rotation = match rotation {
-            DisplayRotation::Rotate0   => WinDisplay::DISPLAYCONFIG_ROTATION_IDENTITY,
-            DisplayRotation::Rotate90  => WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE90,
+            DisplayRotation::Rotate0 => WinDisplay::DISPLAYCONFIG_ROTATION_IDENTITY,
+            DisplayRotation::Rotate90 => WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE90,
             DisplayRotation::Rotate180 => WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE180,
             DisplayRotation::Rotate270 => WinDisplay::DISPLAYCONFIG_ROTATION_ROTATE270,
         };
@@ -77,17 +74,14 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_resolution(
-        &mut self,
-        extent: Extent2D,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
         let path = find_path!(self)?;
         // SAFETY: Accessing union field requires unsafe block.
         let idx = unsafe { path.sourceInfo.Anonymous.modeInfoIdx } as usize;
         if idx < self.topology.data.modes.len() {
             unsafe {
                 let src = &mut self.topology.data.modes[idx].Anonymous.sourceMode;
-                src.width  = extent.width;
+                src.width = extent.width;
                 src.height = extent.height;
             }
         }
@@ -98,19 +92,13 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_position(
-        &mut self,
-        position: Point2D,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
         let path = find_path!(self)?;
         // SAFETY: Accessing union field requires unsafe block.
         let idx = unsafe { path.sourceInfo.Anonymous.modeInfoIdx } as usize;
         if idx < self.topology.data.modes.len() {
             unsafe {
-                let pos = &mut self.topology.data.modes[idx]
-                    .Anonymous
-                    .sourceMode
-                    .position;
+                let pos = &mut self.topology.data.modes[idx].Anonymous.sourceMode.position;
                 pos.x = position.x;
                 pos.y = position.y;
             }
@@ -133,7 +121,7 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
                     .targetMode
                     .targetVideoSignalInfo
                     .vSyncFreq;
-                freq.Numerator   = rate;
+                freq.Numerator = rate;
                 freq.Denominator = 1_000;
             }
         }
@@ -159,19 +147,20 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         state: HdrState,
         mode: HdrMode,
     ) -> DisplayResult<&mut dyn OutputEditable> {
-        self.topology.staged_hdr.insert(self.target_id, (state, mode));
+        self.topology
+            .staged_hdr
+            .insert(self.target_id, (state, mode));
         if let Some(out) = find_output_mut!(self) {
             out.hdr_state = state;
-            out.hdr_mode  = mode;
+            out.hdr_mode = mode;
         }
         Ok(self)
     }
 
     fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
-        self.topology.staged_scales.insert(
-            self.target_id,
-            (scale * 100.0).round() as i32,
-        );
+        self.topology
+            .staged_scales
+            .insert(self.target_id, (scale * 100.0).round() as i32);
         if let Some(out) = find_output_mut!(self) {
             out.scale = scale;
         }
@@ -185,10 +174,9 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         } else {
             path.flags &= !DISPLAYCONFIG_PATH_ACTIVE;
             // SAFETY: Modifying Windows union fields requires unsafe block.
-          
-                path.sourceInfo.Anonymous.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
-                path.targetInfo.Anonymous.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
-           
+
+            path.sourceInfo.Anonymous.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
+            path.targetInfo.Anonymous.modeInfoIdx = DISPLAYCONFIG_PATH_MODE_IDX_INVALID;
         }
         if let Some(out) = find_output_mut!(self) {
             out.enabled = enabled;

@@ -1,7 +1,6 @@
 use df_displmgr::types::{
-    DisplayId, ConnectorId, AdapterId, DisplayIdentity, DisplayRotation,
-    HdrState, HdrMode, Point2D, Extent2D, Rect, VideoMode, OutputState,
-    ActivationPlan,
+    ActivationPlan, AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D,
+    HdrMode, HdrState, OutputState, Point2D, Rect, VideoMode,
 };
 
 /// Test DisplayId creation and display
@@ -18,7 +17,7 @@ fn test_display_id_comparison() {
     let id1 = DisplayId("HDMI-1".to_string());
     let id2 = DisplayId("HDMI-2".to_string());
     let id3 = DisplayId("HDMI-1".to_string());
-    
+
     assert!(id1 < id2);
     assert!(id2 > id1);
     assert_eq!(id1, id3);
@@ -29,11 +28,11 @@ fn test_display_id_comparison() {
 #[test]
 fn test_display_id_hash() {
     use std::collections::HashMap;
-    
+
     let mut map = HashMap::new();
     map.insert(DisplayId("HDMI-1".to_string()), 42);
     map.insert(DisplayId("DP-1".to_string()), 100);
-    
+
     assert_eq!(map.get(&DisplayId("HDMI-1".to_string())), Some(&42));
     assert_eq!(map.get(&DisplayId("DP-1".to_string())), Some(&100));
 }
@@ -73,10 +72,10 @@ fn test_display_identity_serialization() {
         hardware_uuid: Some("uuid-1234".to_string()),
         monitor_name: "Test Monitor".to_string(),
     };
-    
+
     let json = serde_json::to_string(&identity).unwrap();
     let parsed: DisplayIdentity = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, identity.id);
     assert_eq!(parsed.connector_id, identity.connector_id);
     assert_eq!(parsed.adapter_id, identity.adapter_id);
@@ -157,7 +156,10 @@ fn test_extent2d_default() {
 /// Test Extent2D creation
 #[test]
 fn test_extent2d_creation() {
-    let extent = Extent2D { width: 1920, height: 1080 };
+    let extent = Extent2D {
+        width: 1920,
+        height: 1080,
+    };
     assert_eq!(extent.width, 1920);
     assert_eq!(extent.height, 1080);
 }
@@ -177,7 +179,10 @@ fn test_rect_default() {
 fn test_rect_creation() {
     let rect = Rect {
         origin: Point2D { x: 0, y: 0 },
-        size: Extent2D { width: 1920, height: 1080 },
+        size: Extent2D {
+            width: 1920,
+            height: 1080,
+        },
     };
     assert_eq!(rect.origin.x, 0);
     assert_eq!(rect.size.width, 1920);
@@ -196,7 +201,10 @@ fn test_video_mode_default() {
 #[test]
 fn test_video_mode_creation() {
     let mode = VideoMode {
-        resolution: Extent2D { width: 2560, height: 1440 },
+        resolution: Extent2D {
+            width: 2560,
+            height: 1440,
+        },
         refresh_rate: 144000,
     };
     assert_eq!(mode.resolution.width, 2560);
@@ -217,20 +225,23 @@ fn test_output_state_default() {
 #[test]
 fn test_output_state_is_landscape() {
     let mut state = OutputState::default();
-    state.geometry.size = Extent2D { width: 1920, height: 1080 };
-    
+    state.geometry.size = Extent2D {
+        width: 1920,
+        height: 1080,
+    };
+
     // Rotate0: width >= height = landscape
     state.rotation = DisplayRotation::Rotate0;
     assert!(state.is_landscape());
-    
+
     // Rotate90: width < height (after rotation) = not landscape
     state.rotation = DisplayRotation::Rotate90;
     assert!(!state.is_landscape());
-    
+
     // Rotate180: width >= height = landscape
     state.rotation = DisplayRotation::Rotate180;
     assert!(state.is_landscape());
-    
+
     // Rotate270: width < height (after rotation) = not landscape
     state.rotation = DisplayRotation::Rotate270;
     assert!(!state.is_landscape());
@@ -240,12 +251,15 @@ fn test_output_state_is_landscape() {
 #[test]
 fn test_output_state_is_portrait() {
     let mut state = OutputState::default();
-    state.geometry.size = Extent2D { width: 1080, height: 1920 };
-    
+    state.geometry.size = Extent2D {
+        width: 1080,
+        height: 1920,
+    };
+
     // Rotate0: width < height = not landscape (portrait)
     state.rotation = DisplayRotation::Rotate0;
     assert!(!state.is_landscape());
-    
+
     // Rotate90: width >= height (after rotation) = landscape
     state.rotation = DisplayRotation::Rotate90;
     assert!(state.is_landscape());
@@ -256,7 +270,7 @@ fn test_output_state_is_portrait() {
 fn test_output_state_refresh_rate_hz() {
     let mut state = OutputState::default();
     state.refresh_rate = 144000; // 144 Hz in mHz
-    
+
     assert_eq!(state.refresh_rate_hz(), 144.0);
 }
 
@@ -273,7 +287,10 @@ fn test_output_state_serialization() {
         },
         geometry: Rect {
             origin: Point2D { x: 0, y: 0 },
-            size: Extent2D { width: 1920, height: 1080 },
+            size: Extent2D {
+                width: 1920,
+                height: 1080,
+            },
         },
         refresh_rate: 60000,
         rotation: DisplayRotation::Rotate0,
@@ -285,10 +302,10 @@ fn test_output_state_serialization() {
         enabled: true,
         is_primary: true,
     };
-    
+
     let json = serde_json::to_string(&state).unwrap();
     let parsed: OutputState = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.identity.id, state.identity.id);
     assert_eq!(parsed.enabled, state.enabled);
     assert_eq!(parsed.is_primary, state.is_primary);
@@ -308,10 +325,13 @@ fn test_activation_plan_default() {
 fn test_activation_plan_with_values() {
     let plan = ActivationPlan {
         position: Some(Point2D { x: 1920, y: 0 }),
-        resolution: Some(Extent2D { width: 1920, height: 1080 }),
+        resolution: Some(Extent2D {
+            width: 1920,
+            height: 1080,
+        }),
         rotation: Some(DisplayRotation::Rotate90),
     };
-    
+
     assert!(plan.position.is_some());
     assert_eq!(plan.position.unwrap().x, 1920);
     assert!(plan.resolution.is_some());
@@ -324,12 +344,14 @@ fn test_activation_plan_with_values() {
 #[test]
 fn test_monitor_mode_fields() {
     let mode = VideoMode {
-        resolution: Extent2D { width: 3840, height: 2160 },
+        resolution: Extent2D {
+            width: 3840,
+            height: 2160,
+        },
         refresh_rate: 120000,
     };
-    
+
     assert_eq!(mode.resolution.width, 3840);
     assert_eq!(mode.resolution.height, 2160);
     assert_eq!(mode.refresh_rate, 120000);
 }
-

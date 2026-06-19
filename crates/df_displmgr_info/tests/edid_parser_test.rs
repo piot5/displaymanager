@@ -1,5 +1,5 @@
 use df_displmgr_info::edid_parser::EdidParser;
-use df_displmgr_info::edid_types::{EdidData, VideoInterfaceInfo, DigitalInterfaceType};
+use df_displmgr_info::edid_types::{DigitalInterfaceType, EdidData, VideoInterfaceInfo};
 
 /// Helper to build a minimal valid 128-byte EDID base block
 fn make_base_edid(model_name: &str) -> Vec<u8> {
@@ -64,7 +64,6 @@ fn test_parse_bad_checksum() {
     assert!(result.is_err());
 }
 
-
 #[test]
 fn test_parse_edid_with_serial_number() {
     let mut raw = make_base_edid("Test");
@@ -79,7 +78,10 @@ fn test_parse_edid_with_serial_number() {
     raw[127] = sum.wrapping_neg();
     let result = EdidParser::parse(&raw);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().serial_number_ascii, Some("SN123456".to_string()));
+    assert_eq!(
+        result.unwrap().serial_number_ascii,
+        Some("SN123456".to_string())
+    );
 }
 
 #[test]
@@ -259,11 +261,7 @@ fn test_parse_digital_interface_types() {
 
 #[test]
 fn test_parse_analog_signal_levels() {
-    let signal_levels = vec![
-        (0x00, 0.700),
-        (0x20, 0.714),
-        (0x40, 1.000),
-    ];
+    let signal_levels = vec![(0x00, 0.700), (0x20, 0.714), (0x40, 1.000)];
     for (video_byte, expected_level) in signal_levels {
         let mut raw = make_base_edid("Test");
         raw[20] = video_byte;

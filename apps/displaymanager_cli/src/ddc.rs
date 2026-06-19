@@ -78,7 +78,11 @@ pub fn run(args: DdcArgs) -> anyhow::Result<()> {
             let ps = match state.to_lowercase().as_str() {
                 "on" | "1" => PowerState::On,
                 "off" | "0" => PowerState::Off,
-                _ => return Err(anyhow!("Unrecognized power state '{state}', use 'on' or 'off'")),
+                _ => {
+                    return Err(anyhow!(
+                        "Unrecognized power state '{state}', use 'on' or 'off'"
+                    ))
+                }
             };
             device
                 .inner
@@ -95,13 +99,22 @@ pub fn run(args: DdcArgs) -> anyhow::Result<()> {
             println!("Set input {source} on {}", device.info);
         }
         DdcAction::ColorGains { red, green, blue } => {
-            device.inner.set_vcp_feature(VcpCode::RedGain as u8, red)
+            device
+                .inner
+                .set_vcp_feature(VcpCode::RedGain as u8, red)
                 .map_err(|e| anyhow!("DDC red gain set failed: {:?}", e))?;
-            device.inner.set_vcp_feature(VcpCode::GreenGain as u8, green)
+            device
+                .inner
+                .set_vcp_feature(VcpCode::GreenGain as u8, green)
                 .map_err(|e| anyhow!("DDC green gain set failed: {:?}", e))?;
-            device.inner.set_vcp_feature(VcpCode::BlueGain as u8, blue)
+            device
+                .inner
+                .set_vcp_feature(VcpCode::BlueGain as u8, blue)
                 .map_err(|e| anyhow!("DDC blue gain set failed: {:?}", e))?;
-            println!("Set color gains to (R={red}, G={green}, B={blue}) on {}", device.info);
+            println!(
+                "Set color gains to (R={red}, G={green}, B={blue}) on {}",
+                device.info
+            );
         }
     }
 

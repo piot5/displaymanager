@@ -98,8 +98,26 @@ mod tests {
     #[test]
     fn no_overlap() {
         let outputs = vec![
-            (true, Rect { origin: Point2D { x: 0, y: 0 }, size: Extent2D { width: 1920, height: 1080 } }),
-            (true, Rect { origin: Point2D { x: 1920, y: 0 }, size: Extent2D { width: 1920, height: 1080 } }),
+            (
+                true,
+                Rect {
+                    origin: Point2D { x: 0, y: 0 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
+                },
+            ),
+            (
+                true,
+                Rect {
+                    origin: Point2D { x: 1920, y: 0 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
+                },
+            ),
         ];
         assert!(check_overlap(&outputs).is_ok());
     }
@@ -107,8 +125,26 @@ mod tests {
     #[test]
     fn overlapping_detected() {
         let outputs = vec![
-            (true, Rect { origin: Point2D { x: 0, y: 0 }, size: Extent2D { width: 1920, height: 1080 } }),
-            (true, Rect { origin: Point2D { x: 500, y: 500 }, size: Extent2D { width: 1920, height: 1080 } }),
+            (
+                true,
+                Rect {
+                    origin: Point2D { x: 0, y: 0 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
+                },
+            ),
+            (
+                true,
+                Rect {
+                    origin: Point2D { x: 500, y: 500 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
+                },
+            ),
         ];
         assert!(check_overlap(&outputs).is_err());
     }
@@ -116,8 +152,26 @@ mod tests {
     #[test]
     fn disabled_ignored() {
         let outputs = vec![
-            (true, Rect { origin: Point2D { x: 0, y: 0 }, size: Extent2D { width: 1920, height: 1080 } }),
-            (false, Rect { origin: Point2D { x: 0, y: 0 }, size: Extent2D { width: 1920, height: 1080 } }),
+            (
+                true,
+                Rect {
+                    origin: Point2D { x: 0, y: 0 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
+                },
+            ),
+            (
+                false,
+                Rect {
+                    origin: Point2D { x: 0, y: 0 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
+                },
+            ),
         ];
         assert!(check_overlap(&outputs).is_ok());
     }

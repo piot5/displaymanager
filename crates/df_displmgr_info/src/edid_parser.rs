@@ -1,6 +1,6 @@
 use crate::edid_types::{
-    EdidData, MonitorMode, VideoInterfaceInfo, DigitalInterfaceType,
-    ChromaticityCoordinates, HdrMetadata, AudioCapabilities
+    AudioCapabilities, ChromaticityCoordinates, DigitalInterfaceType, EdidData, HdrMetadata,
+    MonitorMode, VideoInterfaceInfo,
 };
 use crate::error::EdidError;
 
@@ -64,7 +64,10 @@ impl EdidParser {
                 _ => DigitalInterfaceType::Unknown,
             };
 
-            VideoInterfaceInfo::Digital { bit_depth, interface_type }
+            VideoInterfaceInfo::Digital {
+                bit_depth,
+                interface_type,
+            }
         } else {
             let signal_level = match (video_input_byte >> 5) & 0x03 {
                 0 => 0.700,
@@ -73,7 +76,10 @@ impl EdidParser {
                 _ => 0.700,
             };
             let setup_expected = (video_input_byte & 0x10) != 0;
-            VideoInterfaceInfo::Analog { signal_level_v: signal_level, setup_expected }
+            VideoInterfaceInfo::Analog {
+                signal_level_v: signal_level,
+                setup_expected,
+            }
         };
 
         let chromaticity = Some(Self::parse_chromaticity(&raw[25..35]));
@@ -191,9 +197,13 @@ impl EdidParser {
                                         1 => format!("Linear PCM (channels: {channels})"),
                                         2 => format!("AC-3 / Dolby Digital (channels: {channels})"),
                                         7 => format!("DTS (channels: {channels})"),
-                                        10 => format!("DD+ / Dolby Digital Plus (channels: {channels})"),
+                                        10 => format!(
+                                            "DD+ / Dolby Digital Plus (channels: {channels})"
+                                        ),
                                         12 => format!("Dolby TrueHD (channels: {channels})"),
-                                        _ => format!("SAD Codec {format_code} (channels: {channels})"),
+                                        _ => format!(
+                                            "SAD Codec {format_code} (channels: {channels})"
+                                        ),
                                     };
                                     audio_caps.short_audio_descriptors.push(codec_str);
                                 }
@@ -207,7 +217,8 @@ impl EdidParser {
                                         hdr_caps.supports_sdr_eotf = (eotf_byte & 0x01) != 0;
                                         hdr_caps.supports_hdr_traditional = (eotf_byte & 0x02) != 0;
                                         hdr_caps.supports_smpte_st2084 = (eotf_byte & 0x04) != 0; // HDR10
-                                        hdr_caps.supports_hlg = (eotf_byte & 0x08) != 0;          // Hybrid Log-Gamma
+                                        hdr_caps.supports_hlg = (eotf_byte & 0x08) != 0;
+                                        // Hybrid Log-Gamma
                                     }
                                     if block_data.len() >= 3 {
                                         let max_lum = block_data[2];
@@ -262,13 +273,13 @@ impl EdidParser {
     }
 
     fn parse_chromaticity(b: &[u8]) -> ChromaticityCoordinates {
-        let red_x_lsb   = (b[0] >> 6) & 0x03;
-        let red_y_lsb   = (b[0] >> 4) & 0x03;
+        let red_x_lsb = (b[0] >> 6) & 0x03;
+        let red_y_lsb = (b[0] >> 4) & 0x03;
         let green_x_lsb = (b[0] >> 2) & 0x03;
         let green_y_lsb = b[0] & 0x03;
 
-        let blue_x_lsb  = (b[1] >> 6) & 0x03;
-        let blue_y_lsb  = (b[1] >> 4) & 0x03;
+        let blue_x_lsb = (b[1] >> 6) & 0x03;
+        let blue_y_lsb = (b[1] >> 4) & 0x03;
         let white_x_lsb = (b[1] >> 2) & 0x03;
         let white_y_lsb = b[1] & 0x03;
 
@@ -282,10 +293,14 @@ impl EdidParser {
         let wy = (((b[9] as u16) << 2) | white_y_lsb as u16) as f32 / 1024.0;
 
         ChromaticityCoordinates {
-            red_x: rx, red_y: ry,
-            green_x: gx, green_y: gy,
-            blue_x: bx, blue_y: by_,
-            white_x: wx, white_y: wy,
+            red_x: rx,
+            red_y: ry,
+            green_x: gx,
+            green_y: gy,
+            blue_x: bx,
+            blue_y: by_,
+            white_x: wx,
+            white_y: wy,
         }
     }
 
@@ -324,10 +339,10 @@ mod tests {
         // Week/year (bytes 16-17)
         raw[16] = 10;
         raw[17] = 36; // 1990 + 36 = 2026
-        // Video input byte (byte 20) — digital, HDMI
+                      // Video input byte (byte 20) — digital, HDMI
         raw[20] = 0x82; // digital + HDMI (interface type 2)
-        // Chromaticity bytes 25-34 (zeroed is fine)
-        // Model name in descriptor at offset 54
+                        // Chromaticity bytes 25-34 (zeroed is fine)
+                        // Model name in descriptor at offset 54
         let name_bytes = model_name.as_bytes();
         raw[54] = 0;
         raw[55] = 0;
@@ -365,7 +380,7 @@ mod tests {
     fn test_parse_bad_header() {
         let mut raw = make_test_edid("X", [0x00, 0x00]);
         raw[0] = 0x01; // corrupt header
-        // Recompute checksum
+                       // Recompute checksum
         let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
         raw[127] = sum.wrapping_neg();
         let result = EdidParser::parse(&raw);
@@ -401,7 +416,10 @@ mod tests {
         raw[127] = sum.wrapping_neg();
         let data = EdidParser::parse(&raw).unwrap();
         match data.video_interface {
-            VideoInterfaceInfo::Digital { bit_depth, interface_type } => {
+            VideoInterfaceInfo::Digital {
+                bit_depth,
+                interface_type,
+            } => {
                 assert_eq!(bit_depth, 10);
                 assert!(matches!(interface_type, DigitalInterfaceType::Hdmi));
             }
@@ -417,7 +435,10 @@ mod tests {
         raw[127] = sum.wrapping_neg();
         let data = EdidParser::parse(&raw).unwrap();
         match data.video_interface {
-            VideoInterfaceInfo::Analog { signal_level_v, setup_expected } => {
+            VideoInterfaceInfo::Analog {
+                signal_level_v,
+                setup_expected,
+            } => {
                 assert!((signal_level_v - 0.714).abs() < 0.001);
                 assert!(setup_expected);
             }

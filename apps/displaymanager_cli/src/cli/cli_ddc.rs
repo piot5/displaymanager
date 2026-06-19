@@ -14,11 +14,25 @@ pub struct DdcArgs {
 #[derive(Subcommand, Debug)]
 pub enum DdcAction {
     List,
-    Brightness { value: u32 },
-    Contrast { value: u32 },
-    Volume { value: u32 },
-    Power { state: String },
-    Input { source: String },
+    Brightness {
+        value: u32,
+    },
+    Contrast {
+        value: u32,
+    },
+    Volume {
+        value: u32,
+    },
+    Power {
+        state: String,
+    },
+    Input {
+        source: String,
+    },
     /// Set color gains: red, green, blue values (0..100 each)
-    ColorGains { red: u32, green: u32, blue: u32 },
+    ColorGains {
+        red: u32,
+        green: u32,
+        blue: u32,
+    },
 }

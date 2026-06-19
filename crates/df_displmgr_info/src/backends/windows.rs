@@ -1,19 +1,19 @@
 //! Windows-specific monitor enumeration using the CCD (Connected and Configurable Display) API,
 //! GDI device handles, Registry EDID fallback, and DDC/CI for hardware statistics.
 
-use windows::Win32::Graphics::Gdi::*;
-use windows::Win32::Devices::Display::*;
-use windows::Win32::Foundation::{LPARAM, BOOL, RECT};
 use std::collections::HashSet;
 use std::mem::size_of;
+use windows::Win32::Devices::Display::*;
+use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
+use windows::Win32::Graphics::Gdi::*;
 
-use crate::edid_types::{MonitorTopology, DeepDdcStats};
-use crate::edid_backends::edid_win_reg::WindowsRegBackend;
+use super::{MonitorDetails, MonitorEnumerator};
 use crate::edid_backends::edid_win_ddc::WindowsDdcBackend;
-use crate::edid_trait::EdidControl;
+use crate::edid_backends::edid_win_reg::WindowsRegBackend;
 use crate::edid_parser::EdidParser;
+use crate::edid_trait::EdidControl;
+use crate::edid_types::{DeepDdcStats, MonitorTopology};
 use crate::error::EdidError;
-use super::{MonitorEnumerator, MonitorDetails};
 
 /// Windows monitor enumerator using CCD API and GDI.
 pub struct WindowsMonitorEnumerator;
@@ -33,7 +33,7 @@ fn enumerate_windows_monitors() -> Result<Vec<MonitorDetails>, EdidError> {
         let mut path_count = 0;
         let mut mode_count = 0;
 
-        if GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count).is_err() {
+        if GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count).0 != 0 {
             return Err(EdidError::CommunicationFailed);
         }
 
@@ -48,7 +48,7 @@ fn enumerate_windows_monitors() -> Result<Vec<MonitorDetails>, EdidError> {
             modes.as_mut_ptr(),
             None,
         )
-        .is_err()
+        .0 != 0
         {
             return Err(EdidError::CommunicationFailed);
         }
@@ -142,11 +142,8 @@ fn enumerate_windows_monitors() -> Result<Vec<MonitorDetails>, EdidError> {
 
 /// Find the HMONITOR that matches a GDI device name.
 unsafe fn get_internal_deep_ddc_stats(gdi_name: &str) -> Option<DeepDdcStats> {
-    let gdi_name_pcwstr: Vec<u16> = gdi_name
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect();
-    let mut context = (gdi_name_pcwstr, HMONITOR(0));
+    let gdi_name_pcwstr: Vec<u16> = gdi_name.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut context = (gdi_name_pcwstr, HMONITOR(std::ptr::null_mut()));
 
     unsafe extern "system" fn enum_proc(
         hmon: HMONITOR,
@@ -176,7 +173,7 @@ unsafe fn get_internal_deep_ddc_stats(gdi_name: &str) -> Option<DeepDdcStats> {
         LPARAM(&mut context as *mut _ as isize),
     );
 
-    if context.1 .0 != 0 {
+    if !context.1 .0.is_null() {
         let ddc_backend = WindowsDdcBackend {
             h_monitor: context.1 .0,
         };

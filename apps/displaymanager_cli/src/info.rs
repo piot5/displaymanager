@@ -15,10 +15,10 @@
 //! - Topology analysis: clone / extended detection (same logic as test_extend.rs)
 
 use anyhow::{anyhow, Context};
-use df_displmgr_info::{collect_monitor_data, MonitorDetails};
-use df_displmgr_info::edid_types::{DeepDdcStats, EdidData};
 use df_displmgr::traits::UniversalTopology;
 use df_displmgr::NativeTopology;
+use df_displmgr_info::edid_types::{DeepDdcStats, EdidData};
+use df_displmgr_info::{collect_monitor_data, MonitorDetails};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -53,8 +53,15 @@ pub fn scan() -> anyhow::Result<()> {
         // Look up enriched state from NativeTopology by matching target_id
         let state = output_map.get(&m.target_id);
 
-        println!("─── Monitor {} {} ───────────────────────────", idx + 1, glyph);
-        println!("  Name:          {}", clean_display_string(&m.friendly_name));
+        println!(
+            "─── Monitor {} {} ───────────────────────────",
+            idx + 1,
+            glyph
+        );
+        println!(
+            "  Name:          {}",
+            clean_display_string(&m.friendly_name)
+        );
         println!("  Target ID:     {}", m.target_id);
         println!("  Active:        {}", m.is_active);
 
@@ -65,10 +72,13 @@ pub fn scan() -> anyhow::Result<()> {
             println!("  Adapter:       {}", s.identity.adapter_id.0);
             println!("  Refresh:       {:.1} Hz", s.refresh_rate as f64 / 1000.0);
             println!("  Scale:         {:.0}%", s.scale * 100.0);
-            println!("  HDR:           {}", match s.hdr_state {
-                df_displmgr::types::HdrState::Enabled => "Enabled",
-                _ => "Disabled",
-            });
+            println!(
+                "  HDR:           {}",
+                match s.hdr_state {
+                    df_displmgr::types::HdrState::Enabled => "Enabled",
+                    _ => "Disabled",
+                }
+            );
         }
 
         println!("  GDI Name:      {}", m.gdi_name);
@@ -77,8 +87,10 @@ pub fn scan() -> anyhow::Result<()> {
 
         // Topology from df_displmgr_info + native resolution from OutputState
         if let Some(ref t) = m.topology {
-            println!("  Topology:      {}x{} @ ({}, {})  rotation={}",
-                t.width, t.height, t.x, t.y, t.rotation);
+            println!(
+                "  Topology:      {}x{} @ ({}, {})  rotation={}",
+                t.width, t.height, t.x, t.y, t.rotation
+            );
         }
         if let Some(s) = state {
             if let Some(nat) = s.native_resolution {
@@ -90,22 +102,46 @@ pub fn scan() -> anyhow::Result<()> {
         if let Some(ref edid) = m.edid {
             println!("  EDID:");
             println!("    Model:       {}", edid.model_name);
-            println!("    Manufacturer:{}  Product:{}  Serial:{}",
-                edid.manufacturer_id, edid.product_code, edid.serial_number_binary);
-            println!("    Manufactured: week {} / year {}",
-                edid.week_of_manufacture, edid.year_of_manufacture);
+            println!(
+                "    Manufacturer:{}  Product:{}  Serial:{}",
+                edid.manufacturer_id, edid.product_code, edid.serial_number_binary
+            );
+            println!(
+                "    Manufactured: week {} / year {}",
+                edid.week_of_manufacture, edid.year_of_manufacture
+            );
             if let Some(ref chroma) = edid.chromaticity {
-                println!("    Chromaticity: R({:.3},{:.3}) G({:.3},{:.3}) B({:.3},{:.3}) W({:.3},{:.3})",
-                    chroma.red_x, chroma.red_y,
-                    chroma.green_x, chroma.green_y,
-                    chroma.blue_x, chroma.blue_y,
-                    chroma.white_x, chroma.white_y);
+                println!(
+                    "    Chromaticity: R({:.3},{:.3}) G({:.3},{:.3}) B({:.3},{:.3}) W({:.3},{:.3})",
+                    chroma.red_x,
+                    chroma.red_y,
+                    chroma.green_x,
+                    chroma.green_y,
+                    chroma.blue_x,
+                    chroma.blue_y,
+                    chroma.white_x,
+                    chroma.white_y
+                );
             }
             if edid.hdr_caps.supports_hdr_traditional || edid.hdr_caps.supports_smpte_st2084 {
-                println!("    HDR:         {} Traditional  {} HDR10  {} HLG",
-                    if edid.hdr_caps.supports_hdr_traditional { "✓" } else { "–" },
-                    if edid.hdr_caps.supports_smpte_st2084 { "✓" } else { "–" },
-                    if edid.hdr_caps.supports_hlg { "✓" } else { "–" });
+                println!(
+                    "    HDR:         {} Traditional  {} HDR10  {} HLG",
+                    if edid.hdr_caps.supports_hdr_traditional {
+                        "✓"
+                    } else {
+                        "–"
+                    },
+                    if edid.hdr_caps.supports_smpte_st2084 {
+                        "✓"
+                    } else {
+                        "–"
+                    },
+                    if edid.hdr_caps.supports_hlg {
+                        "✓"
+                    } else {
+                        "–"
+                    }
+                );
                 if let Some(lum) = edid.hdr_caps.max_luminance_cd_m2 {
                     println!("    Max Luminance: {:.0} cd/m²", lum);
                 }
@@ -114,8 +150,13 @@ pub fn scan() -> anyhow::Result<()> {
                 println!("    Modes:       {} available", edid.modes.len());
                 // Show the first 3 native modes
                 for mode in edid.modes.iter().take(3) {
-                    println!("      {}x{} @ {} Hz{}", mode.width, mode.height,
-                        mode.refresh_rate, if mode.interlaced { "i" } else { "p" });
+                    println!(
+                        "      {}x{} @ {} Hz{}",
+                        mode.width,
+                        mode.height,
+                        mode.refresh_rate,
+                        if mode.interlaced { "i" } else { "p" }
+                    );
                 }
                 if edid.modes.len() > 3 {
                     println!("      ... and {} more", edid.modes.len() - 3);
@@ -130,9 +171,12 @@ pub fn scan() -> anyhow::Result<()> {
             if !s.supported_modes.is_empty() {
                 println!("  OS Modes:      {} available", s.supported_modes.len());
                 for vm in s.supported_modes.iter().take(3) {
-                    println!("    {}x{} @ {:.1} Hz",
-                        vm.resolution.width, vm.resolution.height,
-                        vm.refresh_rate as f64 / 1000.0);
+                    println!(
+                        "    {}x{} @ {:.1} Hz",
+                        vm.resolution.width,
+                        vm.resolution.height,
+                        vm.refresh_rate as f64 / 1000.0
+                    );
                 }
                 if s.supported_modes.len() > 3 {
                     println!("    ... and {} more", s.supported_modes.len() - 3);
@@ -143,8 +187,14 @@ pub fn scan() -> anyhow::Result<()> {
         // DDC hardware stats (live from monitor via DDC/CI)
         if let Some(ref ddc) = m.ddc_stats {
             println!("  DDC Telemetry (live):");
-            println!("    Brightness:  {}/{}", ddc.core_caps.brightness, ddc.core_caps.brightness_max);
-            println!("    Contrast:    {}/{}", ddc.core_caps.contrast, ddc.core_caps.contrast_max);
+            println!(
+                "    Brightness:  {}/{}",
+                ddc.core_caps.brightness, ddc.core_caps.brightness_max
+            );
+            println!(
+                "    Contrast:    {}/{}",
+                ddc.core_caps.contrast, ddc.core_caps.contrast_max
+            );
             println!("    Input:       {:?}", ddc.input_source);
             println!("    Power:       {:?}", ddc.power_state);
             if let Some((vol, max_vol)) = ddc.volume {
@@ -194,20 +244,42 @@ fn print_topology_analysis(monitors: &[MonitorDetails]) {
             None => continue,
         };
 
-        let overlapping: Vec<String> = active.iter()
+        let overlapping: Vec<String> = active
+            .iter()
             .filter(|o| o.target_id != m.target_id)
             .filter_map(|o| o.topology.as_ref().map(|ot| (o, ot)))
-            .filter(|(_, ot)| rects_overlap(
-                topo.x, topo.y, topo.width, topo.height,
-                ot.x, ot.y, ot.width, ot.height,
-            ))
-            .map(|(o, _)| format!("'{}' (id={})", clean_display_string(&o.friendly_name), o.target_id))
+            .filter(|(_, ot)| {
+                rects_overlap(
+                    topo.x,
+                    topo.y,
+                    topo.width,
+                    topo.height,
+                    ot.x,
+                    ot.y,
+                    ot.width,
+                    ot.height,
+                )
+            })
+            .map(|(o, _)| {
+                format!(
+                    "'{}' (id={})",
+                    clean_display_string(&o.friendly_name),
+                    o.target_id
+                )
+            })
             .collect();
 
         if overlapping.is_empty() {
-            println!("  ✅ {} — EXTENDED (unique geometry)", clean_display_string(&m.friendly_name));
+            println!(
+                "  ✅ {} — EXTENDED (unique geometry)",
+                clean_display_string(&m.friendly_name)
+            );
         } else {
-            println!("  🔄 {} — CLONED with: {}", clean_display_string(&m.friendly_name), overlapping.join(", "));
+            println!(
+                "  🔄 {} — CLONED with: {}",
+                clean_display_string(&m.friendly_name),
+                overlapping.join(", ")
+            );
         }
     }
     println!();
@@ -221,7 +293,11 @@ pub fn monitor_info(query: &str) -> anyhow::Result<()> {
     println!("╔══════════════════════════════════════════════════════════╗");
     println!("║              Monitor Detail Report                      ║");
     println!("╚══════════════════════════════════════════════════════════╝");
-    println!("  Name:          {}  {}", clean_display_string(&m.friendly_name), glyph);
+    println!(
+        "  Name:          {}  {}",
+        clean_display_string(&m.friendly_name),
+        glyph
+    );
     println!("  Target ID:     {}", m.target_id);
     println!("  Active:        {}", m.is_active);
     println!("  GDI Name:      {}", m.gdi_name);
@@ -254,8 +330,8 @@ pub fn monitor_info(query: &str) -> anyhow::Result<()> {
 /// Single-monitor info as JSON on stdout (called from `display --output X --info-json`).
 pub fn monitor_info_json(query: &str) -> anyhow::Result<()> {
     let m = resolve_monitor(query)?;
-    let json = serde_json::to_string_pretty(&m)
-        .context("Failed to serialize monitor data to JSON")?;
+    let json =
+        serde_json::to_string_pretty(&m).context("Failed to serialize monitor data to JSON")?;
     println!("{json}");
     Ok(())
 }
@@ -292,24 +368,34 @@ pub fn write_edid_report(path: &str) -> anyhow::Result<()> {
             report.push_str(&format!("  Manufacturer:  {}\n", edid.manufacturer_id));
             report.push_str(&format!("  Product Code:  {}\n", edid.product_code));
             report.push_str(&format!("  Serial:        {}\n", edid.serial_number_binary));
-            report.push_str(&format!("  Manufactured:  week {} / year {}\n",
-                edid.week_of_manufacture, edid.year_of_manufacture));
+            report.push_str(&format!(
+                "  Manufactured:  week {} / year {}\n",
+                edid.week_of_manufacture, edid.year_of_manufacture
+            ));
             report.push_str(&format!("  Video Iface:   {:?}\n", edid.video_interface));
             report.push_str(&format!("  Modes:         {}\n", edid.modes.len()));
             for mode in &edid.modes {
-                report.push_str(&format!("    {}x{} @ {} Hz{}\n",
-                    mode.width, mode.height, mode.refresh_rate,
-                    if mode.interlaced { "i" } else { "p" }));
+                report.push_str(&format!(
+                    "    {}x{} @ {} Hz{}\n",
+                    mode.width,
+                    mode.height,
+                    mode.refresh_rate,
+                    if mode.interlaced { "i" } else { "p" }
+                ));
             }
         } else {
             report.push_str("  EDID:          not available\n");
         }
 
         if let Some(ref ddc) = m.ddc_stats {
-            report.push_str(&format!("  DDC Brightness: {}/{}\n",
-                ddc.core_caps.brightness, ddc.core_caps.brightness_max));
-            report.push_str(&format!("  DDC Contrast:  {}/{}\n",
-                ddc.core_caps.contrast, ddc.core_caps.contrast_max));
+            report.push_str(&format!(
+                "  DDC Brightness: {}/{}\n",
+                ddc.core_caps.brightness, ddc.core_caps.brightness_max
+            ));
+            report.push_str(&format!(
+                "  DDC Contrast:  {}/{}\n",
+                ddc.core_caps.contrast, ddc.core_caps.contrast_max
+            ));
             report.push_str(&format!("  DDC Input:     {:?}\n", ddc.input_source));
             report.push_str(&format!("  DDC Power:     {:?}\n", ddc.power_state));
         }
@@ -355,11 +441,19 @@ pub fn resolve_monitor(query: &str) -> anyhow::Result<MonitorDetails> {
         })
         .cloned()
         .ok_or_else(|| {
-            let available: Vec<String> = monitors.iter().map(|m| {
-                format!("'{}' (id={})", clean_display_string(&m.friendly_name), m.target_id)
-            }).collect();
+            let available: Vec<String> = monitors
+                .iter()
+                .map(|m| {
+                    format!(
+                        "'{}' (id={})",
+                        clean_display_string(&m.friendly_name),
+                        m.target_id
+                    )
+                })
+                .collect();
             anyhow!(
-                "Monitor '{query}' not found. Available displays: {:?}", available
+                "Monitor '{query}' not found. Available displays: {:?}",
+                available
             )
         })
 }
@@ -385,13 +479,17 @@ fn get_output_state_map() -> HashMap<u32, df_displmgr::types::OutputState> {
 fn print_edid_detail(edid: &EdidData) {
     println!("\n─── EDID Details ───────────────────────────────────");
     println!("  Model:         {}", edid.model_name);
-    println!("  Manufacturer:  {}  Product: {}  Serial: {}",
-        edid.manufacturer_id, edid.product_code, edid.serial_number_binary);
+    println!(
+        "  Manufacturer:  {}  Product: {}  Serial: {}",
+        edid.manufacturer_id, edid.product_code, edid.serial_number_binary
+    );
     if let Some(ref sn_ascii) = edid.serial_number_ascii {
         println!("  Serial (ASCII): {}", sn_ascii);
     }
-    println!("  Manufactured:  week {} / year {}",
-        edid.week_of_manufacture, edid.year_of_manufacture);
+    println!(
+        "  Manufactured:  week {} / year {}",
+        edid.week_of_manufacture, edid.year_of_manufacture
+    );
     println!("  Video Iface:   {:?}", edid.video_interface);
     println!("  Extensions:    {} blocks", edid.extension_blocks);
 
@@ -405,12 +503,36 @@ fn print_edid_detail(edid: &EdidData) {
 
     // HDR
     let hdr = &edid.hdr_caps;
-    if hdr.supports_sdr_eotf || hdr.supports_hdr_traditional || hdr.supports_smpte_st2084 || hdr.supports_hlg {
+    if hdr.supports_sdr_eotf
+        || hdr.supports_hdr_traditional
+        || hdr.supports_smpte_st2084
+        || hdr.supports_hlg
+    {
         println!("  HDR Capabilities:");
-        println!("    SDR EOTF:      {}", if hdr.supports_sdr_eotf { "✓" } else { "–" });
-        println!("    HDR Trad:      {}", if hdr.supports_hdr_traditional { "✓" } else { "–" });
-        println!("    HDR10 ST.2084: {}", if hdr.supports_smpte_st2084 { "✓" } else { "–" });
-        println!("    HLG:           {}", if hdr.supports_hlg { "✓" } else { "–" });
+        println!(
+            "    SDR EOTF:      {}",
+            if hdr.supports_sdr_eotf { "✓" } else { "–" }
+        );
+        println!(
+            "    HDR Trad:      {}",
+            if hdr.supports_hdr_traditional {
+                "✓"
+            } else {
+                "–"
+            }
+        );
+        println!(
+            "    HDR10 ST.2084: {}",
+            if hdr.supports_smpte_st2084 {
+                "✓"
+            } else {
+                "–"
+            }
+        );
+        println!(
+            "    HLG:           {}",
+            if hdr.supports_hlg { "✓" } else { "–" }
+        );
         if let Some(lum) = hdr.max_luminance_cd_m2 {
             println!("    Max Luminance: {:.0} cd/m²", lum);
         }
@@ -434,16 +556,27 @@ fn print_edid_detail(edid: &EdidData) {
     if !edid.modes.is_empty() {
         println!("  Supported Modes ({} total):", edid.modes.len());
         for mode in &edid.modes {
-            println!("    {}x{} @ {} Hz{}", mode.width, mode.height,
-                mode.refresh_rate, if mode.interlaced { "i" } else { "p" });
+            println!(
+                "    {}x{} @ {} Hz{}",
+                mode.width,
+                mode.height,
+                mode.refresh_rate,
+                if mode.interlaced { "i" } else { "p" }
+            );
         }
     }
 }
 
 fn print_ddc_detail(ddc: &DeepDdcStats) {
     println!("\n─── DDC Telemetry (live) ───────────────────────────");
-    println!("  Brightness:    {}/{}", ddc.core_caps.brightness, ddc.core_caps.brightness_max);
-    println!("  Contrast:      {}/{}", ddc.core_caps.contrast, ddc.core_caps.contrast_max);
+    println!(
+        "  Brightness:    {}/{}",
+        ddc.core_caps.brightness, ddc.core_caps.brightness_max
+    );
+    println!(
+        "  Contrast:      {}/{}",
+        ddc.core_caps.contrast, ddc.core_caps.contrast_max
+    );
     println!("  Input Source:  {:?}", ddc.input_source);
     println!("  Power State:   {:?}", ddc.power_state);
     if let Some((vol, max_vol)) = ddc.volume {
@@ -474,13 +607,17 @@ fn format_output_tech(tech_str: &str) -> String {
     // Parse the raw CCD enum format: "DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(5)"
     // or "5" or "DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY_HDMI"
     let s = tech_str.trim();
-    
+
     // Extract numeric code from parenthesized form
     let code = if let Some(start) = s.find('(') {
         if let Some(end) = s.find(')') {
-            s[start+1..end].trim().parse::<u32>().ok()
-        } else { None }
-    } else { None };
+            s[start + 1..end].trim().parse::<u32>().ok()
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     let code = code.unwrap_or(0);
 
@@ -529,8 +666,7 @@ fn clean_display_string(input: &str) -> String {
 /// Rectangle overlap test (same algorithm as test_extend.rs and extended_tests.rs).
 /// Returns true if the two rectangles have a non-touching intersection area.
 #[allow(clippy::too_many_arguments)]
-fn rects_overlap(ax: i32, ay: i32, aw: u32, ah: u32,
-                 bx: i32, by: i32, bw: u32, bh: u32) -> bool {
+fn rects_overlap(ax: i32, ay: i32, aw: u32, ah: u32, bx: i32, by: i32, bw: u32, bh: u32) -> bool {
     let a_x2 = ax.saturating_add(aw as i32);
     let a_y2 = ay.saturating_add(ah as i32);
     let b_x2 = bx.saturating_add(bw as i32);
