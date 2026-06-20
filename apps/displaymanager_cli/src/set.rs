@@ -2,14 +2,7 @@
 //!
 //! Provides topology edit/commit, CCD wake, clone, extended, off,
 //! automatic positioning, GDI activation, and verify-only analysis.
-//!
-//! Solutions drawn from:
-//! - test_extend.rs    -> --mode-type extended|cloned|off, clone_from, verify-only, post-commit verification
-//! - test_activate_ccd.rs -> CCD Wake via SetDisplayConfig, auto-position
-//! - test.rs           -> batch horizontal layout, set_refresh_rate, set_persistence
-//! - test_on.rs        -> GDI activation (via force_all / force_activate_by_monitor_name)
 
-use crate::cli::SetArgs;
 use crate::info;
 use anyhow::{bail, Context, Result};
 use df_displmgr::types::{DisplayId, DisplayRotation, Extent2D, Point2D};
@@ -18,19 +11,37 @@ use df_displmgr::{NativeTopology, UniversalTopology};
 /// Maximum allowed geometry difference for clone detection (pixels).
 const CLONE_TOLERANCE: i32 = 4;
 
+#[derive(Debug, Clone, Default)]
+pub struct SetArgs {
+    #[allow(dead_code)]
+    pub output: String,
+    pub mode_type: Option<String>,
+    pub clone_from: Option<String>,
+    pub mode: Option<String>,
+    pub pos: Option<String>,
+    pub rotate: Option<String>,
+    pub auto_pos: bool,
+    pub ccd_wake: bool,
+    pub refresh_rate: Option<u32>,
+    pub hdr: Option<String>,
+    pub scale: Option<f64>,
+    pub primary: bool,
+    pub verify_only: bool,
+}
+
 // Public API
 
-/// Main topology apply function — dispatches based on --mode-type.
+/// Main topology apply function — dispatches based on mode_type.
 pub async fn apply(output_id_str: &str, args: &SetArgs) -> Result<()> {
     let target = info::resolve_monitor(output_id_str)?;
     let friendly = target.friendly_name.trim().to_string();
 
-    // --verify-only: read-only check (from test_extend.rs)
+    // --verify: read-only check
     if args.verify_only {
         return verify_topology(&target);
     }
 
-    // --ccd-wake: wake inactive display (from test_activate_ccd.rs)
+    // ccd_wake: wake inactive display
     if args.ccd_wake || (!target.is_active && is_mode_active(args)) {
         ccd_wake_display(target.target_id)?;
     }
@@ -44,7 +55,7 @@ pub async fn apply(output_id_str: &str, args: &SetArgs) -> Result<()> {
     let mut topology =
         <NativeTopology as UniversalTopology>::acquire().context("Failed to acquire topology")?;
 
-    // Apply editor changes (editor dropped inside function — topology released on return)
+    // Apply editor changes
     apply_editor_inline(&mut topology, &display_id, args, &auto_pos, &mode)?;
 
     // Validate + commit
@@ -64,12 +75,12 @@ pub async fn apply(output_id_str: &str, args: &SetArgs) -> Result<()> {
         }
     }
 
-    // Post-commit verification (from test_extend.rs verify_mode)
+    // Post-commit verification
     verify_post_commit_extended(&friendly, &mode)?;
     Ok(())
 }
 
-/// Inline editor operations — avoids passing Box<dyn OutputEditable + '_> between functions.
+/// Inline editor operations
 fn apply_editor_inline(
     topology: &mut NativeTopology,
     display_id: &DisplayId,
@@ -83,9 +94,10 @@ fn apply_editor_inline(
 
     match mode {
         "cloned" => {
-            let src_id = args.clone_from.as_ref().ok_or_else(|| {
-                anyhow::anyhow!("--mode-type cloned requires --clone-from <source>")
-            })?;
+            let src_id = args
+                .clone_from
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("--mode cloned requires --cloned <source>"))?;
             println!("  Mode: CLONED — copying from '{}'", src_id);
             editor
                 .clone_from(&DisplayId(src_id.clone()))
@@ -172,7 +184,10 @@ fn apply_editor_inline(
 fn resolve_mode_type(args: &SetArgs) -> String {
     if let Some(ref mt) = args.mode_type {
         let lower = mt.to_lowercase();
-        if lower == "off" || lower == "cloned" || lower == "extended" {
+        if lower == "off" || lower == "cloned" || lower == "ext" || lower == "extended" {
+            if lower == "ext" || lower == "extended" {
+                return "extended".to_string();
+            }
             return lower;
         }
     }
@@ -193,12 +208,12 @@ fn calc_auto_position(args: &SetArgs, mode: &str) -> Option<(i32, i32)> {
         return None;
     }
     if args.pos.is_some() {
-        return None; // explicit --pos overrides
+        return None; // explicit --topo overrides
     }
     if !args.auto_pos && args.mode.is_none() {
         return None; // no auto-position needed
     }
-    // Find rightmost active X from df_displmgr_info (from test_activate_ccd.rs)
+    // Find rightmost active X from df_displmgr_info
     let rightmost_x = df_displmgr_info::collect_monitor_data()
         .ok()
         .map(|monitors| {
@@ -218,7 +233,7 @@ fn calc_auto_position(args: &SetArgs, mode: &str) -> Option<(i32, i32)> {
     Some((rightmost_x, 0i32))
 }
 
-// Verify-only (from test_extend.rs)
+// Verify-only
 
 fn verify_topology(target: &df_displmgr_info::MonitorDetails) -> Result<()> {
     println!("--- Verify-Only: Topology Analysis ---");
@@ -238,7 +253,7 @@ fn verify_topology(target: &df_displmgr_info::MonitorDetails) -> Result<()> {
     Ok(())
 }
 
-// Post-commit verification (from test_extend.rs verify_mode)
+// Post-commit verification
 
 fn verify_post_commit_extended(friendly_name: &str, mode: &str) -> Result<()> {
     let monitors = match df_displmgr_info::collect_monitor_data() {
@@ -323,7 +338,7 @@ fn verify_post_commit_extended(friendly_name: &str, mode: &str) -> Result<()> {
     Ok(())
 }
 
-// CCD Wake (from test_activate_ccd.rs)
+// CCD Wake
 
 #[cfg(target_os = "windows")]
 pub fn ccd_wake_display(target_id: u32) -> Result<()> {
@@ -391,7 +406,7 @@ fn ccd_wake_display(_target_id: u32) -> Result<()> {
 
 // Parser helpers
 
-pub fn parse_resolution(s: &str) -> Result<(u32, u32)> {
+pub fn parse_resolution(s: &str) -> anyhow::Result<(u32, u32)> {
     let parts: Vec<&str> = s.split('x').collect();
     if parts.len() != 2 {
         bail!("Invalid resolution: {s} (expected WxH)");
@@ -399,7 +414,7 @@ pub fn parse_resolution(s: &str) -> Result<(u32, u32)> {
     Ok((parts[0].parse()?, parts[1].parse()?))
 }
 
-pub fn parse_position(s: &str) -> Result<(i32, i32)> {
+pub fn parse_position(s: &str) -> anyhow::Result<(i32, i32)> {
     let parts: Vec<&str> = if s.contains('x') {
         s.split('x').collect()
     } else if s.contains(',') {
@@ -413,7 +428,7 @@ pub fn parse_position(s: &str) -> Result<(i32, i32)> {
     Ok((parts[0].parse()?, parts[1].parse()?))
 }
 
-pub fn parse_rotation(s: &str) -> Result<DisplayRotation> {
+pub fn parse_rotation(s: &str) -> anyhow::Result<DisplayRotation> {
     match s {
         "0" => Ok(DisplayRotation::Rotate0),
         "90" => Ok(DisplayRotation::Rotate90),

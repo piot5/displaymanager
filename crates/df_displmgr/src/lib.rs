@@ -90,6 +90,128 @@ pub use crate::backends::NativeTopology;
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
 pub use crate::backends::NativeTopology;
 
+/// Saved snapshot of an output's state for topology restoration.
+#[derive(Debug, Clone)]
+struct SavedOutput {
+    _name: String,
+    enabled: bool,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+async fn hardware_settle_delay() -> DisplayResult<()> {
+    tokio::task::spawn_blocking(|| {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    })
+    .await
+    .map_err(|e| DisplayError::BackendError(format!("hardware settle delay failed: {e}")))
+}
+
+async fn restore_saved_topology(
+    saved: &std::collections::HashMap<String, SavedOutput>,
+    target_id: u32,
+) -> DisplayResult<()> {
+    let target_id_str = target_id.to_string();
+    let mut topo = NativeTopology::acquire()?;
+    let outputs = topo.get_outputs();
+
+    for o in &outputs {
+        let id_str = &o.identity.id.0;
+        if let Some(s) = saved.get(id_str) {
+            if s.enabled {
+                let did = DisplayId(id_str.clone());
+                if let Ok(mut editor) = topo.edit_output(&did) {
+                    let _ = editor.set_enabled(true);
+                    let _ = editor.set_position(types::Point2D { x: s.x, y: s.y });
+                    let _ = editor.set_resolution(types::Extent2D {
+                        width: s.width,
+                        height: s.height,
+                    });
+                }
+            } else {
+                let did = DisplayId(id_str.clone());
+                if let Ok(mut editor) = topo.edit_output(&did) {
+                    let _ = editor.set_enabled(false);
+                }
+            }
+        } else if id_str == &target_id_str {
+            // Target monitor — keep enabled, will be positioned in step 4
+        } else {
+            // Neither saved nor target — turn off
+            let did = DisplayId(id_str.clone());
+            if let Ok(mut editor) = topo.edit_output(&did) {
+                let _ = editor.set_enabled(false);
+            }
+        }
+    }
+
+    topo.set_persistence(true);
+    let _ = topo.validate().await;
+    topo.commit().await.map_err(|e| {
+        DisplayError::BackendError(format!("topology restore commit failed: {e}"))
+    })
+}
+
+async fn place_target_monitor(
+    target_id: u32,
+    plan: &ActivationPlan,
+    was_active: bool,
+) -> DisplayResult<()> {
+    if was_active {
+        return Ok(());
+    }
+
+    let pos = match plan.position {
+        Some(p) => p,
+        None => {
+            let topo = NativeTopology::acquire()?;
+            let right_x = topo
+                .get_outputs()
+                .iter()
+                .filter(|o| o.enabled)
+                .map(|o| o.geometry.origin.x + o.geometry.size.width as i32)
+                .max()
+                .unwrap_or(0);
+            types::Point2D { x: right_x, y: 0 }
+        }
+    };
+
+    let mut topo = NativeTopology::acquire()?;
+    let did = DisplayId(target_id.to_string());
+    let mut editor = topo.edit_output(&did).map_err(|e| {
+        DisplayError::BackendError(format!("edit_output '{}' failed: {e}", did.0))
+    })?;
+
+    editor.set_enabled(true).map_err(|e| {
+        DisplayError::BackendError(format!("set_enabled for '{}' failed: {e}", did.0))
+    })?;
+    editor.set_position(pos).map_err(|e| {
+        DisplayError::BackendError(format!("set_position for '{}' failed: {e}", did.0))
+    })?;
+
+    if let Some(res) = plan.resolution {
+        editor.set_resolution(res).map_err(|e| {
+            DisplayError::BackendError(format!("set_resolution for '{}' failed: {e}", did.0))
+        })?;
+    }
+    if let Some(rot) = plan.rotation {
+        editor.set_rotation(rot).map_err(|e| {
+            DisplayError::BackendError(format!("set_rotation for '{}' failed: {e}", did.0))
+        })?;
+    }
+
+    drop(editor);
+    topo.set_persistence(true);
+    let _ = topo.validate().await;
+    topo.commit()
+        .await
+        .map_err(|e| DisplayError::BackendError(format!("final commit failed: {e}")))?;
+
+    Ok(())
+}
+
 /// Topology-aware activation: save current topology, force_all, restore, place target.
 ///
 /// This is the main high-level function for activating an inactive monitor while
@@ -113,16 +235,6 @@ pub async fn activate_with_topology_restore(
     use std::collections::HashMap;
     use traits::UniversalTopology;
 
-    #[derive(Debug, Clone)]
-    struct SavedOutput {
-        _name: String,
-        enabled: bool,
-        x: i32,
-        y: i32,
-        width: u32,
-        height: u32,
-    }
-
     // ── Step 1: Save current topology ──
     let saved: HashMap<String, SavedOutput> = {
         let topo = NativeTopology::acquire()?;
@@ -145,128 +257,22 @@ pub async fn activate_with_topology_restore(
     };
 
     // ── Step 2: force_all / activate all (platform-specific) ──
-    force_all_displays().map_err(|e| DisplayError::BackendError(e.to_string()))?;
+    force_all_displays()
+        .map_err(|e| DisplayError::BackendError(format!("force_all failed: {e}")))?;
 
-    // Small delay for hardware to settle
-    tokio::task::spawn_blocking(|| {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    })
-    .await
-    .map_err(|e| DisplayError::BackendError(e.to_string()))?;
+    hardware_settle_delay().await?;
 
     // ── Step 3: Restore saved topology ──
-    {
-        let mut topo = NativeTopology::acquire()?;
-        let outputs = topo.get_outputs();
-        let target_id_str = target_id.to_string();
-
-        for o in &outputs {
-            let id_str = &o.identity.id.0;
-            if let Some(s) = saved.get(id_str) {
-                if s.enabled {
-                    let did = DisplayId(id_str.clone());
-                    if let Ok(mut editor) = topo.edit_output(&did) {
-                        let _ = editor.set_enabled(true);
-                        let _ = editor.set_position(types::Point2D { x: s.x, y: s.y });
-                        let _ = editor.set_resolution(types::Extent2D {
-                            width: s.width,
-                            height: s.height,
-                        });
-                    }
-                } else {
-                    let did = DisplayId(id_str.clone());
-                    if let Ok(mut editor) = topo.edit_output(&did) {
-                        let _ = editor.set_enabled(false);
-                    }
-                }
-            } else if id_str == &target_id_str {
-                // Target monitor — keep enabled, will be positioned in step 4
-            } else {
-                // Neither saved nor target — turn off
-                let did = DisplayId(id_str.clone());
-                if let Ok(mut editor) = topo.edit_output(&did) {
-                    let _ = editor.set_enabled(false);
-                }
-            }
-        }
-
-        topo.set_persistence(true);
-        let _ = topo.validate().await;
-        topo.commit()
-            .await
-            .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-    }
-
-    // Small delay for hardware to settle
-    tokio::task::spawn_blocking(|| {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    })
-    .await
-    .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-
-    // ── Step 4: Place target monitor ──
-    // Check if target was already active
     let was_active = saved
         .get(&target_id.to_string())
         .map(|s| s.enabled)
         .unwrap_or(false);
 
-    if was_active {
-        // Already positioned correctly from step 3
-        return Ok(());
-    }
+    restore_saved_topology(&saved, target_id).await?;
 
-    // Determine position
-    let pos = match plan.position {
-        Some(p) => p,
-        None => {
-            // Auto-position: right of rightmost active monitor
-            let topo = NativeTopology::acquire()?;
-            let right_x = topo
-                .get_outputs()
-                .iter()
-                .filter(|o| o.enabled)
-                .map(|o| o.geometry.origin.x + o.geometry.size.width as i32)
-                .max()
-                .unwrap_or(0);
-            types::Point2D { x: right_x, y: 0 }
-        }
-    };
-
-    {
-        let mut topo = NativeTopology::acquire()?;
-        let did = DisplayId(target_id.to_string());
-        let mut editor = topo
-            .edit_output(&did)
-            .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-
-        editor
-            .set_enabled(true)
-            .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-        editor
-            .set_position(pos)
-            .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-
-        if let Some(res) = plan.resolution {
-            editor
-                .set_resolution(res)
-                .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-        }
-        if let Some(rot) = plan.rotation {
-            editor
-                .set_rotation(rot)
-                .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-        }
-
-        drop(editor);
-        topo.set_persistence(true);
-        let _ = topo.validate().await;
-        topo.commit()
-            .await
-            .map_err(|e| DisplayError::BackendError(e.to_string()))?;
-    }
-
-    Ok(())
+    // ── Step 4: Place target monitor ──
+    hardware_settle_delay().await?;
+    place_target_monitor(target_id, plan, was_active).await
 }
 
 /// Platform-specific force-all-displays-active operation.
@@ -456,23 +462,27 @@ mod tests {
 
     #[test]
     fn test_output_state_refresh_rate_hz() {
-        let mut state = OutputState::default();
-        state.refresh_rate = 144_000;
+        let state = OutputState {
+            refresh_rate: 144_000,
+            ..Default::default()
+        };
         assert_eq!(state.refresh_rate_hz(), 144.0);
     }
 
     #[test]
     fn test_output_state_serialization() {
-        let mut state = OutputState::default();
-        state.enabled = true;
-        state.geometry = types::Rect {
-            origin: types::Point2D { x: 0, y: 0 },
-            size: types::Extent2D {
-                width: 1920,
-                height: 1080,
+        let state = OutputState {
+            enabled: true,
+            geometry: types::Rect {
+                origin: types::Point2D { x: 0, y: 0 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
+            refresh_rate: 60_000,
+            ..Default::default()
         };
-        state.refresh_rate = 60_000;
         let json = serde_json::to_string(&state).unwrap();
         let deserialized: OutputState = serde_json::from_str(&json).unwrap();
         assert_eq!(state.enabled, deserialized.enabled);
@@ -481,14 +491,16 @@ mod tests {
 
     #[test]
     fn test_output_state_supported_modes() {
-        let mut state = OutputState::default();
-        state.supported_modes = vec![types::VideoMode {
-            resolution: types::Extent2D {
-                width: 1920,
-                height: 1080,
-            },
-            refresh_rate: 60_000,
-        }];
+        let state = OutputState {
+            supported_modes: vec![types::VideoMode {
+                resolution: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
+                refresh_rate: 60_000,
+            }],
+            ..Default::default()
+        };
         assert_eq!(state.supported_modes.len(), 1);
         assert_eq!(state.supported_modes[0].resolution.width, 1920);
     }

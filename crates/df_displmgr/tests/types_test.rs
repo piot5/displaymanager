@@ -268,8 +268,10 @@ fn test_output_state_is_portrait() {
 /// Test OutputState refresh_rate_hz
 #[test]
 fn test_output_state_refresh_rate_hz() {
-    let mut state = OutputState::default();
-    state.refresh_rate = 144000; // 144 Hz in mHz
+    let state = OutputState {
+        refresh_rate: 144000,
+        ..Default::default()
+    };
 
     assert_eq!(state.refresh_rate_hz(), 144.0);
 }

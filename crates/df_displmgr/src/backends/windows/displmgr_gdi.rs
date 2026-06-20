@@ -254,7 +254,7 @@ impl GdiTopology {
             .outputs
             .iter()
             .filter_map(|(id, state)| {
-                if !state.enabled && keep_active.is_none_or(|keep| &keep.0 != id) {
+                if !state.enabled && !matches!(keep_active, Some(keep) if &keep.0 == id) {
                     Some(id.clone())
                 } else {
                     None

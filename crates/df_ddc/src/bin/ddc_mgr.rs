@@ -1,15 +1,41 @@
+//! Standalone DDC/CI monitor management CLI tool.
+//!
+//! Provides a subcommand interface for listing monitors and controlling
+//! DDC/CI features like brightness, contrast, volume, input, and power.
+//!
+//! ## Usage
+//!
+//! ```text
+//! ddc_mgr [OPTIONS] <COMMAND>
+//!
+//! Commands:
+//!   list                List all connected DDC-capable monitors
+//!   brightness <VALUE>  Set brightness (0-100)
+//!   contrast <VALUE>    Set contrast (0-100)
+//!   volume <VALUE>      Set audio volume (0-100)
+//!   power <STATE>       Set power state (on/off)
+//!   input <SOURCE>      Switch input source (hdmi1, hdmi2, dp1, dp2)
+//! ```
+
 use clap::{Parser, Subcommand};
 use df_ddc::ddc_trait::DisplayDevice;
 use df_ddc::ddc_types::{InputSource, PowerState, VcpCode};
 use df_ddc::error::DdcError;
 use df_ddc::list_monitors;
+use std::process;
 
 /// CLI tool to manage DDC/CI capable monitors.
 #[derive(Parser)]
-#[command(name = "monmgr", version = "1.0", about = "DDC/CI Monitor Manager")]
+#[command(
+    name = "monmgr",
+    version = "1.0",
+    about = "DDC/CI Monitor Manager",
+    long_about = "Standalone utility for querying and controlling DDC/CI-capable monitors.\n\
+                  Supports brightness, contrast, volume, input source, and power state."
+)]
 struct Cli {
     /// Select monitor by index (default: 0)
-    #[arg(short, long, default_value_t = 0)]
+    #[arg(short, long, default_value_t = 0, global = true)]
     id: usize,
 
     #[command(subcommand)]
@@ -18,7 +44,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// List all connected DDC-capable monitors
+    /// List all connected DDC-capable monitors with their indices
     List,
     /// Set brightness (0-100)
     Brightness { value: u32 },
@@ -33,75 +59,89 @@ enum Commands {
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::parse();
     let monitors = list_monitors();
 
     if monitors.is_empty() {
         eprintln!("Error: No DDC/CI capable monitors found.");
-        return;
+        std::process::exit(1);
     }
 
     // Select the monitor based on the index provided by the user
-    let display = monitors.get(cli.id).unwrap_or_else(|| {
-        eprintln!("Error: Monitor index {} not found.", cli.id);
-        std::process::exit(1);
-    });
+    let display = match monitors.get(cli.id) {
+        Some(d) => d,
+        None => {
+            eprintln!(
+                "Error: Monitor index {} not found. Available indices: 0-{}",
+                cli.id,
+                monitors.len() - 1
+            );
+            std::process::exit(1);
+        }
+    };
 
-    match &cli.command {
+    let result = match &cli.command {
         Commands::List => {
             for (i, m) in monitors.iter().enumerate() {
                 println!("[{}] {}", i, m.info);
             }
+            Ok(())
         }
-        Commands::Brightness { value } => {
-            apply_vcp(display, VcpCode::Brightness, *value);
-        }
-        Commands::Contrast { value } => {
-            apply_vcp(display, VcpCode::Contrast, *value);
-        }
-        Commands::Volume { value } => {
-            apply_vcp(display, VcpCode::Volume, *value);
-        }
+        Commands::Brightness { value } => apply_vcp(display, VcpCode::Brightness, *value),
+        Commands::Contrast { value } => apply_vcp(display, VcpCode::Contrast, *value),
+        Commands::Volume { value } => apply_vcp(display, VcpCode::Volume, *value),
         Commands::Power { state } => {
-            let p = if state == "off" {
-                PowerState::Off
-            } else {
-                PowerState::On
-            };
-            if let Err(e) = display.inner.set_power(p) {
-                handle_ddc_error(e);
-            } else {
-                println!("Power set to {}", state);
-            }
-        }
-        Commands::Input { source } => {
-            let src = match source.as_str() {
-                "hdmi1" => InputSource::Hdmi1,
-                "hdmi2" => InputSource::Hdmi2,
-                "dp1" => InputSource::DisplayPort1,
-                "dp2" => InputSource::DisplayPort2,
+            let p = match state.to_lowercase().as_str() {
+                "on" | "1" => PowerState::On,
+                "off" | "0" => PowerState::Off,
                 _ => {
-                    eprintln!("Error: Unknown input source.");
-                    return;
+                    eprintln!("Error: Unrecognized power state '{state}'. Use 'on' or 'off'.");
+                    process::exit(1);
                 }
             };
-            if let Err(e) = display.inner.set_input(src) {
-                handle_ddc_error(e);
-            } else {
-                println!("Input switched to {}", source);
-            }
+            display.inner.set_power(p).map(|()| {
+                println!("Power set to {state}");
+            })
         }
+        Commands::Input { source } => {
+            let src = parse_input_source(source.as_str()).map_err(|e| {
+                eprintln!("Error: {e}");
+                std::process::exit(1);
+            });
+            display.inner.set_input(src.unwrap())
+        }
+    };
+
+    if let Err(e) = result {
+        handle_ddc_error(e);
+        std::process::exit(1);
+    }
+}
+
+/// Parse input source string to InputSource enum.
+fn parse_input_source(source: &str) -> Result<InputSource, String> {
+    match source.to_lowercase().as_str() {
+        "hdmi1" | "hdmi-1" | "hdmi1.0" => Ok(InputSource::Hdmi1),
+        "hdmi2" | "hdmi-2" | "hdmi2.0" => Ok(InputSource::Hdmi2),
+        "dp1" | "displayport1" | "displayport1.0" => Ok(InputSource::DisplayPort1),
+        "dp2" | "displayport2" | "displayport2.0" => Ok(InputSource::DisplayPort2),
+        other => Err(format!(
+            "Unrecognized input source '{other}'. Use hdmi1, hdmi2, dp1, or dp2."
+        )),
     }
 }
 
 /// Helper to apply VCP values with verification and basic range clamping.
-fn apply_vcp(display: &DisplayDevice, code: VcpCode, value: u32) {
-    let val = value.min(100); // Ensure the value is within the 0-100 range
-    if let Err(e) = display.inner.set_vcp_feature(code as u8, val) {
-        handle_ddc_error(e);
-    } else {
-        println!("Successfully set {:?} to {}", code, val);
+fn apply_vcp(display: &DisplayDevice, code: VcpCode, value: u32) -> Result<(), DdcError> {
+    // Clamp value to 0-100 range and log if clamping occurred
+    let val = value.min(100);
+    if val != value {
+        eprintln!("Warning: value clamped from {value} to {val}");
     }
+    display.inner.set_vcp_feature(code as u8, val).map(|()| {
+        println!("Successfully set {:?} to {}", code, val);
+    })
 }
 
 /// Centralized error handling for DDC operations.
@@ -111,9 +151,16 @@ fn handle_ddc_error(err: DdcError) {
             eprintln!("Error: Access denied. Check I2C permissions (or run as admin/root).")
         }
         DdcError::CommunicationFailed { reason } => {
-            eprintln!("Error: Hardware communication failed: {}", reason)
+            eprintln!("Error: Hardware communication failed: {reason}")
         }
-        DdcError::UnsupportedFeature => eprintln!("Error: Feature not supported by this monitor."),
-        _ => eprintln!("An unexpected error occurred: {:?}", err),
+        DdcError::UnsupportedFeature => {
+            eprintln!("Error: Feature not supported by this monitor.")
+        }
+        DdcError::InvalidDevice { path } => {
+            eprintln!("Error: Invalid DDC device: {path}")
+        }
+        DdcError::BackendNotAvailable { details } => {
+            eprintln!("Error: DDC backend not available: {details}")
+        }
     }
 }

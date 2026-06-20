@@ -316,6 +316,13 @@ impl EdidParser {
     }
 }
 
+/// Parses a raw EDID byte slice into an [`EdidData`] structure.
+/// This is a thin wrapper around `EdidParser::parse` provided for compatibility
+/// with integration tests that expect a free function named `parse_edid`.
+pub fn parse_edid(raw: &[u8]) -> Result<EdidData, EdidError> {
+    EdidParser::parse(raw)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

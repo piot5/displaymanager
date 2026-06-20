@@ -1,5 +1,5 @@
 use df_displmgr_info::edid_parser::EdidParser;
-use df_displmgr_info::edid_types::{DigitalInterfaceType, EdidData, VideoInterfaceInfo};
+use df_displmgr_info::edid_types::{DigitalInterfaceType, VideoInterfaceInfo};
 
 /// Helper to build a minimal valid 128-byte EDID base block
 fn make_base_edid(model_name: &str) -> Vec<u8> {
@@ -209,9 +209,7 @@ fn test_parse_edid_zero_resolution_dtd() {
 #[test]
 fn test_parse_edid_blank_model_name() {
     let mut raw = make_base_edid("");
-    for i in 54..72 {
-        raw[i] = 0;
-    }
+    raw[54..72].fill(0);
     let sum: u8 = raw[..127].iter().fold(0u8, |acc, &x| acc.wrapping_add(x));
     raw[127] = sum.wrapping_neg();
     let result = EdidParser::parse(&raw);

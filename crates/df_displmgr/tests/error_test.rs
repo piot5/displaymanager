@@ -192,10 +192,10 @@ fn test_error_matching() {
 
     for err in errors {
         match err {
-            DisplayError::ConnectionFailed => assert!(true),
-            DisplayError::StaleTopology => assert!(true),
-            DisplayError::PermissionDenied => assert!(true),
-            _ => panic!("Unexpected error variant"),
+            DisplayError::ConnectionFailed
+            | DisplayError::StaleTopology
+            | DisplayError::PermissionDenied => {}
+            _ => panic!("Unexpected error variant: {:?}", err),
         }
     }
 }
@@ -238,8 +238,8 @@ fn test_io_error_conversion() {
     let display_err: df_displmgr::DisplayError = io_err.into();
 
     match display_err {
-        df_displmgr::DisplayError::Io(_) => assert!(true),
-        _ => panic!("Expected Io error variant"),
+        df_displmgr::DisplayError::Io(_) => {}
+        _ => panic!("Expected Io error variant, got: {:?}", display_err),
     }
 }
 

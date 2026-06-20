@@ -1,5 +1,5 @@
 use df_ddc::ddc_trait::{DdcControl, DisplayDevice};
-use df_ddc::ddc_types::{InputSource, MonitorCapabilities, PowerState};
+use df_ddc::ddc_types::{InputSource, PowerState};
 use std::sync::Mutex;
 
 /// Mock DDC control implementation for testing trait methods
@@ -32,7 +32,7 @@ impl DdcControl for MockDdcControl {
 
     fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), df_ddc::error::DdcError> {
         let mut values = self.vcp_values.lock().unwrap();
-        if let Some((current, max)) = values.get_mut(&code) {
+        if let Some((current, _max)) = values.get_mut(&code) {
             *current = value;
             Ok(())
         } else {

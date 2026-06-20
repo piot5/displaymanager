@@ -1,3 +1,8 @@
+[![CI](https://github.com/piot5/displaymanager/actions/workflows/ci.yml/badge.svg)](https://github.com/piot5/displaymanager/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/df_displmgr.svg)](https://crates.io/crates/df_displmgr)
+[![docs.rs](https://img.shields.io/docsrs/df_displmgr)](https://docs.rs/df_displmgr)
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-blue.svg)](https://www.rust-lang.org)
+
 # DisplayManager (DisplayFlow)
 
 Cross-platform display configuration toolkit for Windows (Windows CCD / GDI / DDC/CI)
@@ -63,5 +68,28 @@ Each crate declares its own license in its `Cargo.toml` (MIT and/or
 Apache-2.0). The root workspace contains no additional code.
 
 ## Author
+
+## Example CLI Usage
+
+```bash
+# List connected displays
+displaymanager_cli list
+
+# Get detailed information about a display
+displaymanager_cli info --id 0
+
+# Adjust brightness (0-100)
+displaymanager_cli set-brightness --id 0 --value 75
+```
+
+## API Reference
+
+The crates expose the following public APIs:
+
+- **df_ddc**: Functions for reading and writing DDC/CI VCP codes.
+- **df_displmgr**: Types for representing display topology, modes, and positions.
+- **df_displmgr_info**: Structures for parsing EDID data and extracting telemetry.
+
+Refer to the generated documentation on [docs.rs](https://docs.rs) for detailed usage examples.
 
 piot5 — https://github.com/piot5

@@ -230,12 +230,13 @@ fn test_audio_capabilities_default() {
 /// Test AudioCapabilities with values
 #[test]
 fn test_audio_capabilities_with_values() {
-    let mut audio = AudioCapabilities::default();
-    audio.extra_audio_descriptors_count = 2;
-    audio.short_audio_descriptors = vec![
-        "Linear PCM (channels: 2)".to_string(),
-        "AC-3 / Dolby Digital (channels: 5)".to_string(),
-    ];
+    let audio = AudioCapabilities {
+        extra_audio_descriptors_count: 2,
+        short_audio_descriptors: vec![
+            "Linear PCM (channels: 2)".to_string(),
+            "AC-3 / Dolby Digital (channels: 5)".to_string(),
+        ],
+    };
 
     assert_eq!(audio.extra_audio_descriptors_count, 2);
     assert_eq!(audio.short_audio_descriptors.len(), 2);

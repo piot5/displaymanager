@@ -33,6 +33,7 @@
 
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
+#![warn(clippy::all)]
 
 /// Platform-specific DDC/CI backend implementations.
 pub mod ddc_backends;
@@ -43,24 +44,37 @@ pub mod ddc_types;
 pub mod error;
 
 use crate::ddc_trait::DisplayDevice;
+use log::{debug, warn};
 
 /// Enumerates all connected monitors supporting DDC/CI across different platforms.
 ///
 /// This function filters out non-display I2C devices on Linux and
 /// manages physical monitor handles on Windows.
+///
+/// # Returns
+///
+/// A vector of [`DisplayDevice`] instances, one per detected DDC/CI-capable monitor.
+/// Devices that fail to open or respond are silently skipped with a warning log.
+///
+/// # Platform-specific behavior
+///
+/// - **Windows**: Uses `EnumDisplayMonitors` and `GetPhysicalMonitorsFromHMONITOR` to
+///   enumerate displays and obtain DDC handles.
+/// - **Linux**: Scans `/dev/i2c-*` devices, skipping internal SMBus interfaces,
+///   and probes each with a VCP `0x10` query to verify DDC support.
 pub fn list_monitors() -> Vec<DisplayDevice> {
     let mut list: Vec<DisplayDevice> = Vec::new();
 
     #[cfg(target_os = "windows")]
     {
+        debug!("Enumerating DDC/CI monitors on Windows via EnumDisplayMonitors");
         // SAFETY: The Windows backend uses `unsafe` for Win32 GDI FFI calls.
         // The callback receives a valid LPARAM pointer to a Vec<DisplayDevice>
-        // that outlives the EnumDisplayMonitors call. All unsafe blocks below
-        // are audited and the pointer arithmetic is sound because the LPARAM
-        // is constructed from a reference to a live Vec.
+        // that outlives the EnumDisplayMonitors call.
         #[allow(unsafe_code)]
         mod windows_ffi {
             use crate::ddc_trait::DisplayDevice;
+            use log::{debug, warn};
             use windows::Win32::Devices::Display::*;
             use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
             use windows::Win32::Graphics::Gdi::*;
@@ -88,15 +102,20 @@ pub fn list_monitors() -> Vec<DisplayDevice> {
                                 let desc = monitor.szPhysicalMonitorDescription;
                                 let len = desc.iter().position(|&c| c == 0).unwrap_or(desc.len());
 
+                                // Handle may be null if monitor was disconnected during enumeration
                                 if let Some(handle) =
                                     std::ptr::NonNull::new(monitor.hPhysicalMonitor.0)
                                 {
+                                    let info = String::from_utf16_lossy(&desc[..len]);
+                                    debug!("Found DDC/CI monitor: {}", info);
                                     l.push(DisplayDevice {
-                                        info: String::from_utf16_lossy(&desc[..len]),
+                                        info,
                                         inner: Box::new(
                                             crate::ddc_backends::ddc_win::WindowsBackend { handle },
                                         ),
                                     });
+                                } else {
+                                    warn!("Monitor had null physical handle, skipping");
                                 }
                             }
                         }
@@ -104,10 +123,8 @@ pub fn list_monitors() -> Vec<DisplayDevice> {
                     BOOL::from(true)
                 }
 
-                // SAFETY: The LPARAM is constructed from a raw pointer to a live Vec.
-                // The callback only reads/writes through this pointer during the
-                // EnumDisplayMonitors call, and the Vec is not moved or dropped until
-                // after the call completes.
+                // SAFETY: LPARAM constructed from raw pointer to a live Vec.
+                // The callback only reads/writes through this pointer during EnumDisplayMonitors.
                 unsafe {
                     let _ = EnumDisplayMonitors(
                         None,
@@ -130,6 +147,7 @@ pub fn list_monitors() -> Vec<DisplayDevice> {
         use crate::ddc_trait::DdcControl;
         use std::fs;
 
+        debug!("Enumerating DDC/CI monitors on Linux via /dev/i2c-* scan");
         if let Ok(entries) = fs::read_dir("/dev") {
             for entry in entries.flatten() {
                 let file_name = entry.file_name().to_string_lossy().into_owned();
@@ -147,8 +165,8 @@ pub fn list_monitors() -> Vec<DisplayDevice> {
                     let backend = LinuxBackend::new(path.clone());
 
                     // Verification: Only add devices that respond to a basic DDC request.
-                    // This is essential as /dev/i2c-* includes many non-monitor devices.
                     if backend.get_vcp_feature(0x10).is_ok() {
+                        debug!("Found DDC/CI monitor on bus: {}", file_name);
                         list.push(DisplayDevice {
                             info: format!("I2C Display Bus ({})", file_name),
                             inner: Box::new(backend),

@@ -31,6 +31,7 @@ const CLONE_TOLERANCE: i32 = 4;
 // Public API
 // ════════════════════════════════════════════════════════════════════
 
+#[allow(dead_code)]
 /// Full scan: list all monitors with topology, EDID, DDC, and OS state.
 pub fn scan() -> anyhow::Result<()> {
     let monitors = collect_monitor_data().context("Hardware scan failed")?;
@@ -220,6 +221,7 @@ pub fn scan() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 /// JSON dump of all monitor data (topology + EDID + DDC) to stdout.
 pub fn scan_json() -> anyhow::Result<()> {
     let monitors = collect_monitor_data().context("Hardware scan failed")?;
@@ -285,6 +287,7 @@ fn print_topology_analysis(monitors: &[MonitorDetails]) {
     println!();
 }
 
+#[allow(dead_code)]
 /// Rich detail output for a single monitor (called from `display --output X --info`).
 pub fn monitor_info(query: &str) -> anyhow::Result<()> {
     let m = resolve_monitor(query)?;
@@ -327,6 +330,7 @@ pub fn monitor_info(query: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 /// Single-monitor info as JSON on stdout (called from `display --output X --info-json`).
 pub fn monitor_info_json(query: &str) -> anyhow::Result<()> {
     let m = resolve_monitor(query)?;
@@ -476,6 +480,7 @@ fn get_output_state_map() -> HashMap<u32, df_displmgr::types::OutputState> {
     map
 }
 
+#[allow(dead_code)]
 fn print_edid_detail(edid: &EdidData) {
     println!("\n─── EDID Details ───────────────────────────────────");
     println!("  Model:         {}", edid.model_name);
@@ -567,6 +572,7 @@ fn print_edid_detail(edid: &EdidData) {
     }
 }
 
+#[allow(dead_code)]
 fn print_ddc_detail(ddc: &DeepDdcStats) {
     println!("\n─── DDC Telemetry (live) ───────────────────────────");
     println!(

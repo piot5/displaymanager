@@ -7,6 +7,13 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+authors = ["piot5"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+
 [workspace.dependencies]
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = { version = "1.0.63" }
@@ -25,6 +32,7 @@ drm = "0.12"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.31", features = ["client"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
+log = "0.4"
 df_ddc = { path = "crates/df_ddc" }
 df_displmgr = { path = "crates/df_displmgr" }
 df_displmgr_info = { path = "crates/df_displmgr_info" }

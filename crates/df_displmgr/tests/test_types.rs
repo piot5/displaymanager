@@ -108,14 +108,16 @@ fn test_output_state_is_landscape() {
 
 #[test]
 fn test_output_state_refresh_rate_hz() {
-    let mut o = OutputState::default();
-    o.refresh_rate = 60000; // 60 Hz in millihertz
+    let mut o = OutputState {
+        refresh_rate: 60000,
+        ..Default::default()
+    };
     assert_eq!(o.refresh_rate_hz(), 60.0);
 
-    o.refresh_rate = 144000; // 144 Hz
+    o.refresh_rate = 144000;
     assert!((o.refresh_rate_hz() - 144.0).abs() < f32::EPSILON);
 
-    o.refresh_rate = 239700; // 239.7 Hz
+    o.refresh_rate = 239700;
     assert!((o.refresh_rate_hz() - 239.7).abs() < 0.1);
 }
 
@@ -187,30 +189,32 @@ fn test_display_id_serialization_roundtrip() {
 
 #[test]
 fn test_output_state_supported_modes() {
-    let mut o = OutputState::default();
-    o.supported_modes = vec![
-        VideoMode {
-            resolution: Extent2D {
-                width: 1920,
-                height: 1080,
+    let o = OutputState {
+        supported_modes: vec![
+            VideoMode {
+                resolution: Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
+                refresh_rate: 60000,
             },
-            refresh_rate: 60000,
-        },
-        VideoMode {
-            resolution: Extent2D {
-                width: 2560,
-                height: 1440,
+            VideoMode {
+                resolution: Extent2D {
+                    width: 2560,
+                    height: 1440,
+                },
+                refresh_rate: 144000,
             },
-            refresh_rate: 144000,
-        },
-        VideoMode {
-            resolution: Extent2D {
-                width: 3840,
-                height: 2160,
+            VideoMode {
+                resolution: Extent2D {
+                    width: 3840,
+                    height: 2160,
+                },
+                refresh_rate: 60000,
             },
-            refresh_rate: 60000,
-        },
-    ];
+        ],
+        ..Default::default()
+    };
     assert_eq!(o.supported_modes.len(), 3);
     assert_eq!(o.supported_modes[1].refresh_rate, 144000);
 }

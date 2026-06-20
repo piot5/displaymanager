@@ -443,9 +443,7 @@ fn test_parse_serial_number_ascii() {
 fn test_parse_serial_number_ascii_with_nulls() {
     let mut raw = make_base_edid("SNNull", [0x00, 0x00], 0x82, 0);
     // Clear the descriptor area to remove the model name
-    for i in 54..72 {
-        raw[i] = 0;
-    }
+    raw[54..72].fill(0);
     raw[54] = 0;
     raw[55] = 0;
     raw[56] = 0;
