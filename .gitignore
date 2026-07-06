@@ -12,3 +12,4 @@ dist/
 edid_dump.txt
 edid.json
 cli_test_report.md
+Cargo.lock
