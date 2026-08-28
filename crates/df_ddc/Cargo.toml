@@ -1,0 +1,56 @@
+[package]
+name = "df_ddc"
+version = "0.1.1"
+edition = "2021"
+rust-version = "1.75"
+authors = ["piot5"]
+description = "DDC/CI monitor control backend."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+documentation = "https://docs.rs/df_ddc"
+readme = "README.md"
+keywords = ["display", "monitor", "ddc", "ddc-ci", "vcp"]
+categories = ["os::windows-apis", "os::linux-apis", "hardware-support"]
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "df_ddc"
+path = "src/lib.rs"
+
+[features]
+default = []
+progress = ["indicatif"]
+
+[[bin]]
+name = "ddc_mgr"
+path = "src/bin/ddc_mgr.rs"
+
+[dependencies]
+df_core = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+log = { workspace = true }
+rayon = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+env_logger = { workspace = true }
+indicatif = { version = "0.17", optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+rayon = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+serde_json = { workspace = true }
+
+[[bench]]
+name = "ddc_operations"
+harness = false

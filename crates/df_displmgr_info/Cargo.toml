@@ -1,0 +1,38 @@
+[package]
+name = "df_displmgr_info"
+version = "0.1.1"
+edition = "2021"
+rust-version = "1.75"
+authors = ["piot5"]
+description = "EDID parser and hardware telemetry extraction for display devices."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+documentation = "https://docs.rs/df_displmgr_info"
+readme = "README.md"
+keywords = ["display", "monitor", "edid", "ddc", "telemetry"]
+categories = ["os::windows-apis", "os::linux-apis", "hardware-support"]
+exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+name = "df_displmgr_info"
+path = "src/lib.rs"
+
+[dependencies]
+df_core = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+# Windows-Backends (erben Features vom Workspace)
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[dev-dependencies]
+env_logger = { version = "0.11" }
+criterion = { workspace = true }

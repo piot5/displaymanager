@@ -1,0 +1,35 @@
+﻿[package]
+name = "displaymanager_cli"
+version = "0.1.1"
+edition = "2021"
+rust-version = "1.75"
+authors = ["piot5"]
+description = "Display configuration interface for Windows (GDI/CCD) and Linux (Wayland/DRM)"
+documentation = "https://docs.rs/displaymanager_cli"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+readme = "README.md"
+keywords = ["display", "monitor", "ddc", "topology", "ccd"]
+categories = ["os::windows-apis", "os::linux-apis", "command-line-utilities"]
+exclude = ["/target/", "/Cargo.lock", "*.json", "*.bak", "*.tmp"]
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { version = "4.6.1", features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+env_logger = { version = "0.11" }
+
+df_displmgr = { workspace = true }
+df_displmgr_info = { workspace = true }
+df_ddc = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wayland-client = { workspace = true }
+wayland-protocols = { workspace = true }
+wayland-protocols-wlr = { workspace = true }
+drm = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }

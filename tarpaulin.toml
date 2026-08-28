@@ -1,0 +1,45 @@
+[report]
+# Output formats for CI and local development
+out = ["Stdout", "Xml", "Html"]
+
+# Directory for generated reports
+output-dir = "target/tarpaulin"
+
+# Exclude generated code, benchmarks, binary entrypoints, and build artifacts
+exclude-files = [
+    "src/generated/*",
+    "src/benches/*",
+    "src/bin/*",
+    "target/*",
+    "apps/*/src/bin/*",
+    "crates/*/src/bin/*",
+]
+
+# Show detailed per-file coverage in stdout
+show-missing = true
+
+# Minimum coverage threshold - adjust as coverage improves
+# Current coverage is ~39%, so we set a realistic target
+fail-under = 39
+
+# Include test files in coverage measurement
+include-tests = true
+
+[run]
+# Run all tests to measure coverage
+ignore-tests = false
+
+# Do NOT ignore panics - they indicate real bugs
+ignore-panics = false
+
+# Timeout for test execution (use proper duration format)
+timeout = "2m"
+
+# Run in release mode for realistic performance measurement
+release = false
+
+# Verbose output for debugging coverage issues
+verbose = true
+
+# Skip tests marked with #[ignore] (hardware-dependent tests)
+skip-ignored = true

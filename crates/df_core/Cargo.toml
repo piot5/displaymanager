@@ -1,0 +1,28 @@
+[package]
+name = "df_core"
+version = "0.1.1"
+edition = "2021"
+rust-version = "1.75"
+authors = ["piot5"]
+description = "Shared core types and traits for the displaymanager workspace."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/piot5/displaymanager"
+homepage = "https://github.com/piot5/displaymanager"
+
+[lib]
+name = "df_core"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }

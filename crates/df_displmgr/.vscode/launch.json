@@ -1,0 +1,99 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Debug unit tests in library 'df_dispmgr'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test"
+                ]
+            }
+        },
+        {
+            "name": "Debug example 'demo'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=demo"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in example 'demo'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--example=demo"
+                ]
+            }
+        },
+        {
+            "name": "Debug example 'list_all'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=list_all"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in example 'list_all'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--example=list_all"
+                ]
+            }
+        },
+        {
+            "name": "Debug example 'test'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--example=test"
+                ]
+            },
+            "args": []
+        },
+        {
+            "name": "Debug unit tests in example 'test'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--example=test"
+                ]
+            }
+        },
+        {
+            "name": "Debug benchmark 'df_dispmgr_operations'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bench=df_dispmgr_operations"
+                ]
+            }
+        }
+    ]
+}

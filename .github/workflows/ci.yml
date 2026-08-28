@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+      - name: MSRV check
+        run: cargo +1.75.0 check --workspace --all-targets
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: cargo-index-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache target dir
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: cargo-target-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install cargo-audit and llvm-cov
+        run: cargo install cargo-audit --locked && cargo install cargo-llvm-cov --locked
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy (all targets)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Audit
+        run: cargo audit
+      - name: Test (workspace)
+        run: cargo test --workspace 2>&1
+      - name: Test coverage (displaymanager_cli)
+        run: cargo test -p displaymanager_cli 2>&1
+      - name: Coverage report
+        run: cargo llvm-cov --workspace --all-targets --codecov --output-dir coverage
