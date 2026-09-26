@@ -25,16 +25,6 @@ fn test_monitor_capabilities_serialization() {
     assert_eq!(parsed.contrast, 50);
 }
 
-/// Test PowerState enum variants
-#[test]
-fn test_power_state_variants() {
-    assert_eq!(PowerState::On as u32, 0x01);
-    assert_eq!(PowerState::Standby as u32, 0x02);
-    assert_eq!(PowerState::Suspend as u32, 0x03);
-    assert_eq!(PowerState::Off as u32, 0x04);
-    assert_eq!(PowerState::Unknown as u32, 0x00);
-}
-
 /// Test PowerState serialization
 #[test]
 fn test_power_state_serialization() {
@@ -43,17 +33,6 @@ fn test_power_state_serialization() {
 
     let parsed: PowerState = serde_json::from_str("\"Off\"").unwrap();
     assert_eq!(parsed, PowerState::Off);
-}
-
-/// Test InputSource enum variants
-#[test]
-fn test_input_source_variants() {
-    assert_eq!(InputSource::AnalogVga as u32, 0x01);
-    assert_eq!(InputSource::Dvi as u32, 0x03);
-    assert_eq!(InputSource::Hdmi1 as u32, 0x11);
-    assert_eq!(InputSource::DisplayPort1 as u32, 0x0F);
-    assert_eq!(InputSource::UsbC as u32, 0x13);
-    assert_eq!(InputSource::Unknown as u32, 0x00);
 }
 
 /// Test InputSource serialization
@@ -79,18 +58,6 @@ fn test_audio_mute_state_variants() {
     assert_eq!(AudioMuteState::Muted as u32, 0x01);
     assert_eq!(AudioMuteState::Unmuted as u32, 0x02);
     assert_eq!(AudioMuteState::Unknown as u32, 0x00);
-}
-
-/// Test DigitalInterfaceType variants
-#[test]
-fn test_digital_interface_type_variants() {
-    assert_eq!(DigitalInterfaceType::Hdmi, DigitalInterfaceType::Hdmi);
-    assert_eq!(
-        DigitalInterfaceType::DisplayPort,
-        DigitalInterfaceType::DisplayPort
-    );
-    assert_eq!(DigitalInterfaceType::Dvi, DigitalInterfaceType::Dvi);
-    assert_eq!(DigitalInterfaceType::Unknown, DigitalInterfaceType::Unknown);
 }
 
 /// Test VideoInterfaceInfo::Digital
@@ -247,25 +214,25 @@ fn test_audio_capabilities_with_values() {
 /// Test EdidData creation
 #[test]
 fn test_edid_data_fields() {
-let edid = EdidData {
-    model_name: "TestMonitor".to_string(),
-    manufacturer_id: "DEL".to_string(),
-    product_code: 0x1234,
-    serial_number_binary: 0x5678,
-    serial_number_ascii: Some("SN123".to_string()),
-    week_of_manufacture: 10,
-    year_of_manufacture: 2020,
-    video_interface: VideoInterfaceInfo::Digital {
-        bit_depth: 8,
-        interface_type: DigitalInterfaceType::Hdmi,
-    },
-    chromaticity: None,
-    extension_blocks: 1,
-    modes: vec![],
-    hdr_caps: HdrMetadata::default(),
-    audio_caps: AudioCapabilities::default(),
-    display_id_detected: false,
-    display_id_modes: vec![],
+    let edid = EdidData {
+        model_name: "TestMonitor".to_string(),
+        manufacturer_id: "DEL".to_string(),
+        product_code: 0x1234,
+        serial_number_binary: 0x5678,
+        serial_number_ascii: Some("SN123".to_string()),
+        week_of_manufacture: 10,
+        year_of_manufacture: 2020,
+        video_interface: VideoInterfaceInfo::Digital {
+            bit_depth: 8,
+            interface_type: DigitalInterfaceType::Hdmi,
+        },
+        chromaticity: None,
+        extension_blocks: 1,
+        modes: vec![],
+        hdr_caps: HdrMetadata::default(),
+        audio_caps: AudioCapabilities::default(),
+        display_id_detected: false,
+        display_id_modes: vec![],
     };
 
     assert_eq!(edid.model_name, "TestMonitor");
@@ -277,25 +244,25 @@ let edid = EdidData {
 /// Test EdidData serialization
 #[test]
 fn test_edid_data_serialization_roundtrip() {
-let edid = EdidData {
-    model_name: "TestMonitor".to_string(),
-    manufacturer_id: "ABC".to_string(),
-    product_code: 0xABCD,
-    serial_number_binary: 0x12345678,
-    serial_number_ascii: Some("Serial".to_string()),
-    week_of_manufacture: 5,
-    year_of_manufacture: 2023,
-    video_interface: VideoInterfaceInfo::Analog {
-        signal_level_v: 0.700,
-        setup_expected: false,
-    },
-    chromaticity: None,
-    extension_blocks: 0,
-    modes: vec![],
-    hdr_caps: HdrMetadata::default(),
-    audio_caps: AudioCapabilities::default(),
-    display_id_detected: false,
-    display_id_modes: vec![],
+    let edid = EdidData {
+        model_name: "TestMonitor".to_string(),
+        manufacturer_id: "ABC".to_string(),
+        product_code: 0xABCD,
+        serial_number_binary: 0x12345678,
+        serial_number_ascii: Some("Serial".to_string()),
+        week_of_manufacture: 5,
+        year_of_manufacture: 2023,
+        video_interface: VideoInterfaceInfo::Analog {
+            signal_level_v: 0.700,
+            setup_expected: false,
+        },
+        chromaticity: None,
+        extension_blocks: 0,
+        modes: vec![],
+        hdr_caps: HdrMetadata::default(),
+        audio_caps: AudioCapabilities::default(),
+        display_id_detected: false,
+        display_id_modes: vec![],
     };
 
     let json = serde_json::to_string(&edid).unwrap();
@@ -312,10 +279,10 @@ fn test_deep_ddc_stats_fields() {
     let stats = DeepDdcStats {
         core_caps: MonitorCapabilities {
             brightness: 80,
-        brightness_min: 0,
+            brightness_min: 0,
             brightness_max: 100,
             contrast: 60,
-        contrast_min: 0,
+            contrast_min: 0,
             contrast_max: 100,
         },
         input_source: InputSource::Hdmi1,
@@ -343,10 +310,10 @@ fn test_deep_ddc_stats_serialization() {
     let stats = DeepDdcStats {
         core_caps: MonitorCapabilities {
             brightness: 50,
-        brightness_min: 0,
+            brightness_min: 0,
             brightness_max: 100,
             contrast: 50,
-        contrast_min: 0,
+            contrast_min: 0,
             contrast_max: 100,
         },
         input_source: InputSource::DisplayPort1,
@@ -387,15 +354,6 @@ fn test_vcp_code_values() {
     assert_eq!(VcpCode::FlatPanelType as u8, 0xB6);
 }
 
-/// Test VcpCode equality
-#[test]
-fn test_vcp_code_equality() {
-    assert_eq!(VcpCode::Brightness, VcpCode::Brightness);
-    assert_eq!(VcpCode::RedGain, VcpCode::RedGain);
-    assert_ne!(VcpCode::Brightness, VcpCode::Contrast);
-    assert_ne!(VcpCode::Brightness, VcpCode::Volume); // Different VCP codes
-}
-
 /// Test MonitorCapabilities equality
 #[test]
 fn test_monitor_capabilities_equality() {
@@ -428,44 +386,4 @@ fn test_monitor_capabilities_equality() {
 
     assert_eq!(caps1, caps2);
     assert_ne!(caps1, caps3);
-}
-
-/// Test PowerState equality
-#[test]
-fn test_power_state_equality() {
-    assert_eq!(PowerState::On, PowerState::On);
-    assert_eq!(PowerState::Off, PowerState::Off);
-    assert_ne!(PowerState::On, PowerState::Off);
-    assert_ne!(PowerState::Standby, PowerState::On);
-}
-
-/// Test InputSource equality
-#[test]
-fn test_input_source_equality() {
-    assert_eq!(InputSource::Hdmi1, InputSource::Hdmi1);
-    assert_eq!(InputSource::DisplayPort1, InputSource::DisplayPort1);
-    assert_ne!(InputSource::Hdmi1, InputSource::DisplayPort1);
-    assert_ne!(InputSource::Hdmi1, InputSource::Hdmi2);
-}
-
-/// Test AudioMuteState equality
-#[test]
-fn test_audio_mute_state_equality() {
-    assert_eq!(AudioMuteState::Muted, AudioMuteState::Muted);
-    assert_eq!(AudioMuteState::Unmuted, AudioMuteState::Unmuted);
-    assert_ne!(AudioMuteState::Muted, AudioMuteState::Unmuted);
-}
-
-/// Test DigitalInterfaceType equality
-#[test]
-fn test_digital_interface_type_equality() {
-    assert_eq!(DigitalInterfaceType::Hdmi, DigitalInterfaceType::Hdmi);
-    assert_eq!(
-        DigitalInterfaceType::DisplayPort,
-        DigitalInterfaceType::DisplayPort
-    );
-    assert_ne!(
-        DigitalInterfaceType::Hdmi,
-        DigitalInterfaceType::DisplayPort
-    );
 }

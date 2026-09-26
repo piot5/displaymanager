@@ -11,7 +11,7 @@ use crate::backends::windows::displmgr_ccd::displmgr_ccd_api::{
     ccd_wake_display, find_display_target,
 };
 use crate::backends::windows::displmgr_ccd::displmgr_ccd_sys::DISPLAYCONFIG_PATH_ACTIVE;
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::types::{
     AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D, HdrMode,
     HdrState, OutputState, Point2D, Rect,
@@ -81,7 +81,8 @@ fn scan_all_devices() -> Vec<ScannedDevice> {
 /// Queries all active GDI display devices and returns their current display modes
 /// along with a `HashMap` of their raw `DEVMODEW` snapshots for later re-use during
 /// commit cycles.
-pub fn query_gdi_outputs() -> DisplayResult<(HashMap<String, DEVMODEW>, Vec<OutputState>)> {
+pub fn query_gdi_outputs(
+) -> Result<(HashMap<String, DEVMODEW>, Vec<OutputState>), DisplayManagerError> {
     let mut staged_modes = HashMap::new();
     let mut outputs = Vec::new();
 
@@ -172,8 +173,7 @@ unsafe fn apply_resolution(gdi_name: &str, width: u32, height: u32) {
     // SAFETY: FFI call. `wide_name` is a valid wide string and `dm` is
     // properly initialized with a valid `dmSize`.
     let settings_loaded = unsafe {
-        EnumDisplaySettingsW(PCWSTR(wide_name.as_ptr()), ENUM_REGISTRY_SETTINGS, &mut dm)
-            .as_bool()
+        EnumDisplaySettingsW(PCWSTR(wide_name.as_ptr()), ENUM_REGISTRY_SETTINGS, &mut dm).as_bool()
     };
     if settings_loaded {
         dm.dmPelsWidth = width;
@@ -204,7 +204,7 @@ unsafe fn flush_display_settings() {
 /// Activates all disconnected GDI displays with a default 1920×1080 resolution.
 ///
 /// Single-pass scan: enumerates devices once, then applies changes.
-pub fn force_all() -> DisplayResult<()> {
+pub fn force_all() -> Result<(), DisplayManagerError> {
     let devices = scan_all_devices();
 
     for dev in &devices {
@@ -232,10 +232,13 @@ pub fn force_all() -> DisplayResult<()> {
 /// 3. Then use GDI to set the resolution
 ///
 /// This avoids duplicating the CCD query logic that lives in `displmgr_ccd_api.rs`.
-pub fn force_activate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
+pub fn force_activate_by_monitor_name(monitor_name: &str) -> Result<(), DisplayManagerError> {
     // Step 1: Find the target using the shared CCD API
     let target = find_display_target(monitor_name).ok_or_else(|| {
-        DisplayError::BackendError(format!("Monitor '{}' not found in CCD paths", monitor_name))
+        DisplayManagerError::BackendError(format!(
+            "Monitor '{}' not found in CCD paths",
+            monitor_name
+        ))
     })?;
 
     let target_id = target.target_id;
@@ -260,10 +263,13 @@ pub fn force_activate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
 
 /// Deactivates a specific display by its monitor friendly name using CCD.
 /// Delegates to the shared CCD API rather than duplicating query logic.
-pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()> {
+pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> Result<(), DisplayManagerError> {
     // Find target via shared CCD API
     let target = find_display_target(monitor_name).ok_or_else(|| {
-        DisplayError::BackendError(format!("Monitor '{}' not found in CCD paths", monitor_name))
+        DisplayManagerError::BackendError(format!(
+            "Monitor '{}' not found in CCD paths",
+            monitor_name
+        ))
     })?;
 
     if !target.is_active {
@@ -286,7 +292,7 @@ pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()>
         let flags = SDC_APPLY | SDC_SAVE_TO_DATABASE;
         let st = SetDisplayConfig(Some(&paths), Some(&modes), flags);
         if st != 0 {
-            return Err(DisplayError::BackendError(format!(
+            return Err(DisplayManagerError::BackendError(format!(
                 "SetDisplayConfig deactivate failed for target {}: 0x{:08X}",
                 target.target_id, st as u32
             )));
@@ -301,7 +307,7 @@ pub fn force_deactivate_by_monitor_name(monitor_name: &str) -> DisplayResult<()>
 /// Consolidates the GetDisplayConfigBufferSizes + QueryDisplayConfig
 /// pattern that was duplicated across multiple functions.
 unsafe fn query_ccd_paths(
-) -> DisplayResult<(Vec<DISPLAYCONFIG_PATH_INFO>, Vec<DISPLAYCONFIG_MODE_INFO>)> {
+) -> Result<(Vec<DISPLAYCONFIG_PATH_INFO>, Vec<DISPLAYCONFIG_MODE_INFO>), DisplayManagerError> {
     let mut path_count = 0u32;
     let mut mode_count = 0u32;
 
@@ -309,7 +315,7 @@ unsafe fn query_ccd_paths(
     let result =
         unsafe { GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count) };
     if result.0 != 0 {
-        return Err(DisplayError::BackendError(format!(
+        return Err(DisplayManagerError::BackendError(format!(
             "GetDisplayConfigBufferSizes failed: {}",
             result.0
         )));
@@ -330,7 +336,7 @@ unsafe fn query_ccd_paths(
         )
     };
     if result.0 != 0 {
-        return Err(DisplayError::BackendError(format!(
+        return Err(DisplayManagerError::BackendError(format!(
             "QueryDisplayConfig failed: {}",
             result.0
         )));
@@ -386,11 +392,9 @@ unsafe fn apply_resolution_for_target(target_id: u32, width: u32, _height: u32) 
     // SAFETY: union field access; modeInfoIdx is valid for source info.
     let src_idx = unsafe { paths[idx].sourceInfo.Anonymous.modeInfoIdx } as usize;
     if src_idx < modes.len() {
-        // SAFETY: union field access; sourceMode is the active arm for source modes.
-        unsafe {
-            modes[src_idx].Anonymous.sourceMode.position.x = rightmost_x;
-            modes[src_idx].Anonymous.sourceMode.position.y = 0;
-        }
+        // Writing a union field is safe; only reading union fields requires `unsafe`.
+        modes[src_idx].Anonymous.sourceMode.position.x = rightmost_x;
+        modes[src_idx].Anonymous.sourceMode.position.y = 0;
     }
 
     // SAFETY: FFI call; paths and modes are valid buffers obtained from query_ccd_paths.

@@ -3,8 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 // Re-export unified types from df_core for backward compatibility
-pub use df_core::{MonitorCapabilities, PowerState, InputSource, VcpCode};
 pub use df_core::DisplayManagerError;
+pub use df_core::{InputSource, MonitorCapabilities, PowerState, VcpCode};
 
 /// Position, size and rotation of an active display output.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -11,12 +11,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # Publish order must follow the dependency graph, starting with df_core.
+      # Every dependency declares a `version`, so `cargo package` succeeds.
       - name: Publish to crates.io
         run: |
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/df_core/Cargo.toml
+          sleep 15
           cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/df_displmgr_info/Cargo.toml
-          sleep 10
+          sleep 15
           cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/df_ddc/Cargo.toml
-          sleep 10
+          sleep 15
           cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path crates/df_displmgr/Cargo.toml
-          sleep 10
+          sleep 15
           cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --manifest-path apps/displaymanager_cli/Cargo.toml

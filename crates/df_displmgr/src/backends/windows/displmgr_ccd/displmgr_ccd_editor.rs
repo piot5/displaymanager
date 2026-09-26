@@ -1,6 +1,6 @@
 // ── Imports ──────────────────────────────────────────────────────────────────
 use super::{CcdTopology, DISPLAYCONFIG_PATH_ACTIVE, DISPLAYCONFIG_PATH_MODE_IDX_INVALID};
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::OutputEditable;
 use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 use windows::Win32::Devices::Display as WinDisplay;
@@ -56,7 +56,7 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
     fn set_rotation(
         &mut self,
         rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         if self.get_state().rotation == rotation {
             return Ok(self);
         }
@@ -74,7 +74,10 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let path = find_path!(self)?;
         // SAFETY: Accessing union field requires unsafe block.
         let idx = unsafe { path.sourceInfo.Anonymous.modeInfoIdx } as usize;
@@ -92,7 +95,10 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(
+        &mut self,
+        position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let path = find_path!(self)?;
         // SAFETY: Accessing union field requires unsafe block.
         let idx = unsafe { path.sourceInfo.Anonymous.modeInfoIdx } as usize;
@@ -110,7 +116,10 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let path = find_path!(self)?;
         // SAFETY: Accessing union field requires unsafe block.
         let idx = unsafe { path.targetInfo.Anonymous.modeInfoIdx } as usize;
@@ -132,7 +141,7 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         for out in &mut self.topology.outputs {
             out.is_primary = false;
         }
@@ -146,7 +155,7 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         &mut self,
         state: HdrState,
         mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.topology
             .staged_hdr
             .insert(self.target_id, (state, mode));
@@ -157,7 +166,7 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_scale(&mut self, scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.topology
             .staged_scales
             .insert(self.target_id, (scale * 100.0).round() as i32);
@@ -167,7 +176,10 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let path = find_path!(self)?;
         if enabled {
             path.flags |= DISPLAYCONFIG_PATH_ACTIVE;
@@ -185,7 +197,10 @@ impl<'a> OutputEditable for CcdOutputEditor<'a> {
         Ok(self)
     }
 
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let src_id = source_id
             .0
             .parse::<u32>()

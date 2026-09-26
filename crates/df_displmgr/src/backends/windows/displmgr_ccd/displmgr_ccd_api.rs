@@ -2,7 +2,7 @@ use super::displmgr_ccd_sys::{
     CcdRawData, DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE, DISPLAYCONFIG_MODE_INFO_TYPE_TARGET,
     DISPLAYCONFIG_PATH_ACTIVE, DISPLAYCONFIG_PATH_MODE_IDX_INVALID,
 };
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::types::{
     AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D, HdrMode,
     HdrState, OutputState, Point2D, Rect,
@@ -28,7 +28,7 @@ pub struct DisplayTargetInfo {
 
 /// Queries all CCD paths (including inactive) and returns a list of display targets.
 /// This uses QDC_ALL_PATHS to find displays that may be physically connected but not active.
-pub fn query_all_display_targets() -> DisplayResult<Vec<DisplayTargetInfo>> {
+pub fn query_all_display_targets() -> Result<Vec<DisplayTargetInfo>, DisplayManagerError> {
     let mut path_count = 0u32;
     let mut mode_count = 0u32;
 
@@ -36,7 +36,7 @@ pub fn query_all_display_targets() -> DisplayResult<Vec<DisplayTargetInfo>> {
         WinDisplay::GetDisplayConfigBufferSizes(QDC_ALL_PATHS, &mut path_count, &mut mode_count)
     };
     if result.0 != 0 {
-        return Err(DisplayError::BackendError(format!(
+        return Err(DisplayManagerError::BackendError(format!(
             "GetDisplayConfigBufferSizes failed: {}",
             result.0
         )));
@@ -56,7 +56,7 @@ pub fn query_all_display_targets() -> DisplayResult<Vec<DisplayTargetInfo>> {
         )
     };
     if result.0 != 0 {
-        return Err(DisplayError::BackendError(format!(
+        return Err(DisplayManagerError::BackendError(format!(
             "QueryDisplayConfig failed: {}",
             result.0
         )));
@@ -97,7 +97,7 @@ pub fn find_display_target(query: &str) -> Option<DisplayTargetInfo> {
 ///
 /// This is the low-level CCD mechanism: it finds the path for the given target_id in the
 /// QDC_ALL_PATHS result, sets the ACTIVE flag, and calls SetDisplayConfig.
-pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
+pub fn ccd_wake_display(target_id: u32) -> Result<bool, DisplayManagerError> {
     unsafe {
         let mut path_count = 0u32;
         let mut mode_count = 0u32;
@@ -108,7 +108,7 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
             &mut mode_count,
         );
         if result.0 != 0 {
-            return Err(DisplayError::BackendError(format!(
+            return Err(DisplayManagerError::BackendError(format!(
                 "GetDisplayConfigBufferSizes failed: {}",
                 result.0
             )));
@@ -126,7 +126,7 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
             None,
         );
         if result.0 != 0 {
-            return Err(DisplayError::BackendError(format!(
+            return Err(DisplayManagerError::BackendError(format!(
                 "QueryDisplayConfig failed: {}",
                 result.0
             )));
@@ -148,7 +148,7 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
         // Verify the path has a valid source mode index (required for wake)
         let src_idx = paths[idx].sourceInfo.Anonymous.modeInfoIdx;
         if src_idx == DISPLAYCONFIG_PATH_MODE_IDX_INVALID {
-            return Err(DisplayError::BackendError(format!(
+            return Err(DisplayManagerError::BackendError(format!(
                 "Target {} has no valid source mode index, cannot wake",
                 target_id
             )));
@@ -165,7 +165,7 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
         );
 
         if status != 0 {
-            return Err(DisplayError::BackendError(format!(
+            return Err(DisplayManagerError::BackendError(format!(
                 "SetDisplayConfig wake failed for target {}: 0x{:08X}",
                 target_id, status as u32
             )));
@@ -176,8 +176,8 @@ pub fn ccd_wake_display(target_id: u32) -> DisplayResult<bool> {
 }
 
 /// Maps Win32 error codes to DisplayResult for consistent error handling across the CCD subsystem.
-pub fn map_win32_code(result: windows::core::Result<()>) -> DisplayResult<()> {
-    result.map_err(|e| DisplayError::BackendError(format!("Win32 Error: {}", e)))
+pub fn map_win32_code(result: windows::core::Result<()>) -> Result<(), DisplayManagerError> {
+    result.map_err(|e| DisplayManagerError::BackendError(format!("Win32 Error: {}", e)))
 }
 
 /// Retrieves the friendly name of a display target from the Windows CCD subsystem.
@@ -212,7 +212,7 @@ pub fn get_target_name(adapter_id: windows::Win32::Foundation::LUID, target_id: 
 
 /// Synchronously queries the current CCD configuration from the Windows display subsystem.
 /// Returns both the raw CCD structures and derived OutputState snapshots.
-pub fn query_config_sync() -> DisplayResult<(CcdRawData, Vec<OutputState>)> {
+pub fn query_config_sync() -> Result<(CcdRawData, Vec<OutputState>), DisplayManagerError> {
     let mut path_count = 0u32;
     let mut mode_count = 0u32;
 
@@ -225,7 +225,7 @@ pub fn query_config_sync() -> DisplayResult<(CcdRawData, Vec<OutputState>)> {
         )
     };
     if result.0 != 0 {
-        return Err(DisplayError::BackendError(format!(
+        return Err(DisplayManagerError::BackendError(format!(
             "GetDisplayConfigBufferSizes failed: {}",
             result.0
         )));
@@ -246,7 +246,7 @@ pub fn query_config_sync() -> DisplayResult<(CcdRawData, Vec<OutputState>)> {
         )
     };
     if result.0 != 0 {
-        return Err(DisplayError::BackendError(format!(
+        return Err(DisplayManagerError::BackendError(format!(
             "QueryDisplayConfig failed: {}",
             result.0
         )));

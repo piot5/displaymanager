@@ -2,8 +2,8 @@
 //!
 //! These tests validate error handling and propagation for all EdidError variants.
 
-use df_displmgr_info::error::EdidError;
 use df_core::DisplayManagerError;
+use df_displmgr_info::error::EdidError;
 
 // ============================================================================
 // EdidError::AccessDenied Tests
@@ -27,7 +27,10 @@ fn test_edid_error_access_denied_context() {
     // On Linux this typically means missing i2c group membership
     // On Windows this indicates insufficient session rights
     let err = EdidError::AccessDenied;
-    assert!(!err.to_string().is_empty(), "Error message should not be empty");
+    assert!(
+        !err.to_string().is_empty(),
+        "Error message should not be empty"
+    );
 }
 
 // ============================================================================

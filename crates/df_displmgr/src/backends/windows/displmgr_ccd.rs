@@ -6,7 +6,7 @@ use windows::Win32::Devices::Display::{
     SDC_VALIDATE,
 };
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{DisplayId, HdrMode, HdrState, OutputState};
 
@@ -52,9 +52,9 @@ pub struct CcdTopology {
 
 #[async_trait]
 impl UniversalTopology for CcdTopology {
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         let (raw_data, outputs) = query_config_sync().map_err(|e| {
-            DisplayError::BackendError(format!("Initial QueryDisplayConfig failed: {:?}", e))
+            DisplayManagerError::BackendError(format!("Initial QueryDisplayConfig failed: {:?}", e))
         })?;
 
         Ok(CcdTopology {
@@ -71,7 +71,10 @@ impl UniversalTopology for CcdTopology {
         self.outputs.clone()
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         let target_id =
             id.0.parse::<u32>()
                 .map_err(|_| DisplayManagerError::MonitorNotFound(id.to_string()))?;
@@ -87,7 +90,7 @@ impl UniversalTopology for CcdTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         let has_work = self.dirty || !self.staged_scales.is_empty() || !self.staged_hdr.is_empty();
         if !has_work || self.data.paths.is_empty() {
             return Ok(());
@@ -108,7 +111,7 @@ impl UniversalTopology for CcdTopology {
                     && o1.geometry.origin.y < o2.geometry.origin.y + o2.geometry.size.height as i32
                     && o1.geometry.origin.y + o1.geometry.size.height as i32 > o2.geometry.origin.y
                 {
-                    return Err(DisplayError::ConfigurationRejected);
+                    return Err(DisplayManagerError::ConfigurationRejected);
                 }
             }
         }
@@ -122,12 +125,12 @@ impl UniversalTopology for CcdTopology {
             )
         };
         if status != 0 {
-            return Err(DisplayError::ConfigurationRejected);
+            return Err(DisplayManagerError::ConfigurationRejected);
         }
         Ok(())
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         if !self.dirty && self.staged_scales.is_empty() && self.staged_hdr.is_empty() {
             return Ok(());
         }
@@ -149,7 +152,7 @@ impl UniversalTopology for CcdTopology {
                 self.staged_scales.clear();
                 self.staged_hdr.clear();
                 self.dirty = false;
-                return Err(DisplayError::BackendError(format!(
+                return Err(DisplayManagerError::BackendError(format!(
                     "SetDisplayConfig failed: {}",
                     status
                 )));

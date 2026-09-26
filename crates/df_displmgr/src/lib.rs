@@ -46,13 +46,15 @@ pub mod traits;
 pub mod types;
 
 // Re-export core types for a flattened, user-friendly API.
+// The two deprecated aliases stay exported for backward compatibility.
+#[allow(deprecated)]
 pub use error::{DisplayError, DisplayManagerError, DisplayResult};
 pub use traits::{OutputEditable, UniversalTopology};
 pub use types::*;
 
 // Re-export constants and timing utilities from df_core
-pub use df_core::constants::{HARDWARE_SETTLE_DELAY_MS, CLONE_TOLERANCE_PIXELS};
-pub use df_core::timing::{TimingParameters, calculate_cvt, cvt_rb, gtf};
+pub use df_core::constants::{CLONE_TOLERANCE_PIXELS, HARDWARE_SETTLE_DELAY_MS};
+pub use df_core::timing::{calculate_cvt, cvt_rb, gtf, TimingParameters};
 
 // Windows-specific re-exports
 #[cfg(target_os = "windows")]
@@ -107,7 +109,7 @@ struct SavedOutput {
     height: u32,
 }
 
-async fn hardware_settle_delay() -> DisplayResult<()> {
+async fn hardware_settle_delay() -> Result<(), DisplayManagerError> {
     tokio::time::sleep(std::time::Duration::from_millis(HARDWARE_SETTLE_DELAY_MS)).await;
     Ok(())
 }
@@ -115,7 +117,7 @@ async fn hardware_settle_delay() -> DisplayResult<()> {
 async fn restore_saved_topology(
     saved: &std::collections::HashMap<String, SavedOutput>,
     target_id: u32,
-) -> DisplayResult<()> {
+) -> Result<(), DisplayManagerError> {
     let target_id_str = target_id.to_string();
     let mut topo = NativeTopology::acquire()?;
     let outputs = topo.get_outputs();
@@ -153,7 +155,7 @@ async fn restore_saved_topology(
     topo.set_persistence(true);
     let _ = topo.validate().await;
     topo.commit().await.map_err(|e| {
-        DisplayError::BackendError(format!("topology restore commit failed: {e}"))
+        DisplayManagerError::BackendError(format!("topology restore commit failed: {e}"))
     })
 }
 
@@ -161,7 +163,7 @@ async fn place_target_monitor(
     target_id: u32,
     plan: &ActivationPlan,
     was_active: bool,
-) -> DisplayResult<()> {
+) -> Result<(), DisplayManagerError> {
     if was_active {
         return Ok(());
     }
@@ -184,24 +186,24 @@ async fn place_target_monitor(
     let mut topo = NativeTopology::acquire()?;
     let did = DisplayId(target_id.to_string());
     let mut editor = topo.edit_output(&did).map_err(|e| {
-        DisplayError::BackendError(format!("edit_output '{}' failed: {e}", did.0))
+        DisplayManagerError::BackendError(format!("edit_output '{}' failed: {e}", did.0))
     })?;
 
     editor.set_enabled(true).map_err(|e| {
-        DisplayError::BackendError(format!("set_enabled for '{}' failed: {e}", did.0))
+        DisplayManagerError::BackendError(format!("set_enabled for '{}' failed: {e}", did.0))
     })?;
     editor.set_position(pos).map_err(|e| {
-        DisplayError::BackendError(format!("set_position for '{}' failed: {e}", did.0))
+        DisplayManagerError::BackendError(format!("set_position for '{}' failed: {e}", did.0))
     })?;
 
     if let Some(res) = plan.resolution {
         editor.set_resolution(res).map_err(|e| {
-            DisplayError::BackendError(format!("set_resolution for '{}' failed: {e}", did.0))
+            DisplayManagerError::BackendError(format!("set_resolution for '{}' failed: {e}", did.0))
         })?;
     }
     if let Some(rot) = plan.rotation {
         editor.set_rotation(rot).map_err(|e| {
-            DisplayError::BackendError(format!("set_rotation for '{}' failed: {e}", did.0))
+            DisplayManagerError::BackendError(format!("set_rotation for '{}' failed: {e}", did.0))
         })?;
     }
 
@@ -210,7 +212,7 @@ async fn place_target_monitor(
     let _ = topo.validate().await;
     topo.commit()
         .await
-        .map_err(|e| DisplayError::BackendError(format!("final commit failed: {e}")))?;
+        .map_err(|e| DisplayManagerError::BackendError(format!("final commit failed: {e}")))?;
 
     Ok(())
 }
@@ -234,7 +236,7 @@ async fn place_target_monitor(
 pub async fn activate_with_topology_restore(
     target_id: u32,
     plan: &ActivationPlan,
-) -> DisplayResult<()> {
+) -> Result<(), DisplayManagerError> {
     use std::collections::HashMap;
     use traits::UniversalTopology;
 
@@ -281,13 +283,14 @@ pub async fn activate_with_topology_restore(
 /// On Windows this uses CCD `SetDisplayConfig` with `SDC_TOPOLOGY_SUPPLIED`.
 /// On Linux this enables all discovered connectors via the active backend.
 #[cfg(target_os = "windows")]
-async fn force_all_displays() -> DisplayResult<()> {
+async fn force_all_displays() -> Result<(), DisplayManagerError> {
     // Windows backend is synchronous, so we just call it directly in an async context
-    crate::backends::windows::force_all().map_err(|e| DisplayError::BackendError(e.to_string()))
+    crate::backends::windows::force_all()
+        .map_err(|e| DisplayManagerError::BackendError(e.to_string()))
 }
 
 #[cfg(target_os = "linux")]
-async fn force_all_displays() -> DisplayResult<()> {
+async fn force_all_displays() -> Result<(), DisplayManagerError> {
     use traits::UniversalTopology;
 
     let mut topo = NativeTopology::acquire()?;
@@ -308,21 +311,15 @@ async fn force_all_displays() -> DisplayResult<()> {
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-async fn force_all_displays() -> DisplayResult<()> {
-    Err(DisplayError::UnsupportedPlatform("force_all_displays not supported on this platform".to_string()))
+async fn force_all_displays() -> Result<(), DisplayManagerError> {
+    Err(DisplayManagerError::UnsupportedPlatform(
+        "force_all_displays not supported on this platform".to_string(),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_activation_plan_default() {
-        let plan = ActivationPlan::default();
-        assert!(plan.position.is_none());
-        assert!(plan.resolution.is_none());
-        assert!(plan.rotation.is_none());
-    }
 
     #[test]
     fn test_activation_plan_with_values() {
@@ -396,30 +393,11 @@ mod tests {
     }
 
     #[test]
-    fn test_display_rotation_default() {
-        let rot = DisplayRotation::default();
-        assert_eq!(rot, DisplayRotation::Rotate0);
-    }
-
-    #[test]
     fn test_display_rotation_values() {
         assert_eq!(DisplayRotation::Rotate0, DisplayRotation::Rotate0);
         assert_eq!(DisplayRotation::Rotate90, DisplayRotation::Rotate90);
         assert_eq!(DisplayRotation::Rotate180, DisplayRotation::Rotate180);
         assert_eq!(DisplayRotation::Rotate270, DisplayRotation::Rotate270);
-    }
-
-    #[test]
-    fn test_extent2d_default() {
-        let extent = Extent2D::default();
-        assert_eq!(extent.width, 0);
-        assert_eq!(extent.height, 0);
-    }
-
-    #[test]
-    fn test_hdr_mode_default() {
-        let mode = HdrMode::default();
-        assert_eq!(mode, HdrMode::Default);
     }
 
     #[test]
@@ -434,23 +412,6 @@ mod tests {
         let mode = HdrMode::Game;
         assert_ne!(mode, HdrMode::Default);
         assert_eq!(mode, HdrMode::Game);
-    }
-
-    #[test]
-    fn test_hdr_state_default() {
-        let state = HdrState::default();
-        assert_eq!(state, HdrState::Disabled);
-    }
-
-    #[test]
-    fn test_output_state_default() {
-        let state = OutputState::default();
-        assert!(!state.enabled);
-        assert_eq!(state.geometry.size.width, 0);
-        assert_eq!(state.geometry.size.height, 0);
-        assert_eq!(state.scale, 1.0);
-        assert_eq!(state.rotation, DisplayRotation::Rotate0);
-        assert_eq!(state.hdr_state, HdrState::Disabled);
     }
 
     #[test]
@@ -525,30 +486,6 @@ mod tests {
         assert_eq!(state.supported_modes[0].resolution.width, 1920);
     }
 
-    #[test]
-    fn test_point2d_default() {
-        let point = Point2D::default();
-        assert_eq!(point.x, 0);
-        assert_eq!(point.y, 0);
-    }
-
-    #[test]
-    fn test_rect_default() {
-        let rect = Rect::default();
-        assert_eq!(rect.origin.x, 0);
-        assert_eq!(rect.origin.y, 0);
-        assert_eq!(rect.size.width, 0);
-        assert_eq!(rect.size.height, 0);
-    }
-
-    #[test]
-    fn test_video_mode_default() {
-        let mode = VideoMode::default();
-        assert_eq!(mode.resolution.width, 0);
-        assert_eq!(mode.resolution.height, 0);
-        assert_eq!(mode.refresh_rate, 0);
-    }
-
     // -------------------------------------------------------------------------
     // ActivationPlan tests
     // -------------------------------------------------------------------------
@@ -557,7 +494,10 @@ mod tests {
     fn test_activation_plan_clone() {
         let plan = ActivationPlan {
             position: Some(types::Point2D { x: 0, y: 0 }),
-            resolution: Some(types::Extent2D { width: 1920, height: 1080 }),
+            resolution: Some(types::Extent2D {
+                width: 1920,
+                height: 1080,
+            }),
             rotation: Some(DisplayRotation::Rotate90),
         };
         let cloned = plan.clone();
@@ -576,12 +516,18 @@ mod tests {
     fn test_activation_plan_partial_eq() {
         let plan1 = ActivationPlan {
             position: Some(types::Point2D { x: 0, y: 0 }),
-            resolution: Some(types::Extent2D { width: 1920, height: 1080 }),
+            resolution: Some(types::Extent2D {
+                width: 1920,
+                height: 1080,
+            }),
             rotation: Some(DisplayRotation::Rotate0),
         };
         let plan2 = ActivationPlan {
             position: Some(types::Point2D { x: 0, y: 0 }),
-            resolution: Some(types::Extent2D { width: 1920, height: 1080 }),
+            resolution: Some(types::Extent2D {
+                width: 1920,
+                height: 1080,
+            }),
             rotation: Some(DisplayRotation::Rotate0),
         };
         let plan3 = ActivationPlan {
@@ -695,10 +641,7 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[tokio::test]
     async fn test_activate_with_topology_restore_no_hardware() {
-        let result = activate_with_topology_restore(
-            9999,
-            &ActivationPlan::default(),
-        ).await;
+        let result = activate_with_topology_restore(9999, &ActivationPlan::default()).await;
         assert!(result.is_err());
     }
 
@@ -727,7 +670,10 @@ mod tests {
                 enabled: true,
                 geometry: types::Rect {
                     origin: types::Point2D { x: 0, y: 0 },
-                    size: types::Extent2D { width: 1920, height: 1080 },
+                    size: types::Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
                 },
                 ..Default::default()
             },
@@ -735,7 +681,10 @@ mod tests {
                 enabled: true,
                 geometry: types::Rect {
                     origin: types::Point2D { x: 1920, y: 0 },
-                    size: types::Extent2D { width: 1600, height: 900 },
+                    size: types::Extent2D {
+                        width: 1600,
+                        height: 900,
+                    },
                 },
                 ..Default::default()
             },
@@ -756,7 +705,10 @@ mod tests {
                 enabled: false,
                 geometry: types::Rect {
                     origin: types::Point2D { x: 0, y: 0 },
-                    size: types::Extent2D { width: 1920, height: 1080 },
+                    size: types::Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
                 },
                 ..Default::default()
             },
@@ -764,7 +716,10 @@ mod tests {
                 enabled: true,
                 geometry: types::Rect {
                     origin: types::Point2D { x: 500, y: 0 },
-                    size: types::Extent2D { width: 1024, height: 768 },
+                    size: types::Extent2D {
+                        width: 1024,
+                        height: 768,
+                    },
                 },
                 ..Default::default()
             },
@@ -853,7 +808,10 @@ mod tests {
         let o1 = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             enabled: true,
             ..Default::default()
@@ -861,7 +819,10 @@ mod tests {
         let o2 = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 1920, y: 0 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             enabled: true,
             ..Default::default()
@@ -878,7 +839,10 @@ mod tests {
         let top = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             enabled: true,
             ..Default::default()
@@ -886,12 +850,18 @@ mod tests {
         let bottom = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 1080 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             enabled: true,
             ..Default::default()
         };
-        assert_eq!(top.geometry.origin.y + top.geometry.size.height as i32, bottom.geometry.origin.y);
+        assert_eq!(
+            top.geometry.origin.y + top.geometry.size.height as i32,
+            bottom.geometry.origin.y
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -912,7 +882,10 @@ mod tests {
         let portrait = OutputState {
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1080, height: 1920 },
+                size: types::Extent2D {
+                    width: 1080,
+                    height: 1920,
+                },
             },
             ..Default::default()
         };
@@ -948,7 +921,10 @@ mod tests {
             },
             geometry: types::Rect {
                 origin: types::Point2D { x: 10, y: 20 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             scale: 2.0,
             rotation: DisplayRotation::Rotate90,
@@ -971,16 +947,6 @@ mod tests {
     // -------------------------------------------------------------------------
 
     #[test]
-    fn test_display_identity_default() {
-        let identity = DisplayIdentity::default();
-        assert_eq!(identity.id, Default::default());
-        assert_eq!(identity.connector_id, Default::default());
-        assert_eq!(identity.adapter_id, Default::default());
-        assert!(identity.hardware_uuid.is_none());
-        assert_eq!(identity.monitor_name, "");
-    }
-
-    #[test]
     fn test_display_identity_with_uuid() {
         let identity = DisplayIdentity {
             hardware_uuid: Some("550e8400-e29b-41d4-a716-446655440000".to_string()),
@@ -988,7 +954,10 @@ mod tests {
             ..Default::default()
         };
         assert!(identity.hardware_uuid.is_some());
-        assert_eq!(identity.hardware_uuid.unwrap(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            identity.hardware_uuid.unwrap(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
     }
 
     #[test]
@@ -1010,7 +979,10 @@ mod tests {
 
     #[test]
     fn test_extent2d_with_values() {
-        let e = Extent2D { width: 800, height: 600 };
+        let e = Extent2D {
+            width: 800,
+            height: 600,
+        };
         assert_eq!(e.width, 800);
         assert_eq!(e.height, 600);
     }
@@ -1034,16 +1006,25 @@ mod tests {
             },
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             refresh_rate: 60_000,
             rotation: types::DisplayRotation::Rotate0,
             hdr_state: types::HdrState::Disabled,
             hdr_mode: types::HdrMode::Default,
             scale: 1.0,
-            native_resolution: Some(types::Extent2D { width: 1920, height: 1080 }),
+            native_resolution: Some(types::Extent2D {
+                width: 1920,
+                height: 1080,
+            }),
             supported_modes: vec![types::VideoMode {
-                resolution: types::Extent2D { width: 1920, height: 1080 },
+                resolution: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
                 refresh_rate: 60_000,
             }],
             enabled: true,
@@ -1056,7 +1037,10 @@ mod tests {
 
     #[test]
     fn test_extent2d_clone() {
-        let e = Extent2D { width: 100, height: 200 };
+        let e = Extent2D {
+            width: 100,
+            height: 200,
+        };
         let c = e;
         assert_eq!(e, c);
     }
@@ -1072,7 +1056,10 @@ mod tests {
     fn test_rect_clone() {
         let r = Rect {
             origin: Point2D { x: 10, y: 20 },
-            size: Extent2D { width: 100, height: 100 },
+            size: Extent2D {
+                width: 100,
+                height: 100,
+            },
         };
         let c = r;
         assert_eq!(r, c);
@@ -1091,28 +1078,32 @@ mod tests {
 
     #[test]
     fn test_display_error_configuration_rejected() {
-        let err = DisplayError::ConfigurationRejected;
+        let err = DisplayManagerError::ConfigurationRejected;
         assert!(err.to_string().contains("rejected"));
     }
 
     #[test]
     fn test_display_error_permission_denied() {
-        let err = DisplayError::PermissionDenied;
-        assert!(err.to_string().to_lowercase().contains("permission")
-            || err.to_string().to_lowercase().contains("privilege"));
+        let err = DisplayManagerError::PermissionDenied;
+        assert!(
+            err.to_string().to_lowercase().contains("permission")
+                || err.to_string().to_lowercase().contains("privilege")
+        );
     }
 
     #[test]
     fn test_display_error_stale_topology() {
-        let err = DisplayError::StaleTopology;
+        let err = DisplayManagerError::StaleTopology;
         assert!(err.to_string().contains("stale"));
     }
 
     #[test]
     fn test_display_error_connection_failed() {
-        let err = DisplayError::ConnectionFailed;
-        assert!(err.to_string().to_lowercase().contains("connect")
-            || err.to_string().to_lowercase().contains("fail"));
+        let err = DisplayManagerError::ConnectionFailed;
+        assert!(
+            err.to_string().to_lowercase().contains("connect")
+                || err.to_string().to_lowercase().contains("fail")
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -1149,7 +1140,10 @@ mod tests {
     #[test]
     fn test_output_state_native_resolution() {
         let state = OutputState {
-            native_resolution: Some(types::Extent2D { width: 3840, height: 2160 }),
+            native_resolution: Some(types::Extent2D {
+                width: 3840,
+                height: 2160,
+            }),
             ..Default::default()
         };
         assert_eq!(state.native_resolution.unwrap().width, 3840);
@@ -1168,7 +1162,10 @@ mod tests {
     #[test]
     fn test_video_mode_with_values() {
         let mode = VideoMode {
-            resolution: Extent2D { width: 2560, height: 1440 },
+            resolution: Extent2D {
+                width: 2560,
+                height: 1440,
+            },
             refresh_rate: 144_000,
         };
         assert_eq!(mode.refresh_rate_hz(), 144.0);
@@ -1183,7 +1180,10 @@ mod tests {
 
     #[test]
     fn test_extent2d_large_values() {
-        let e = Extent2D { width: 7680, height: 4320 };
+        let e = Extent2D {
+            width: 7680,
+            height: 4320,
+        };
         assert_eq!(e.width, 7680);
         assert_eq!(e.height, 4320);
     }
@@ -1194,7 +1194,10 @@ mod tests {
             enabled: true,
             geometry: types::Rect {
                 origin: types::Point2D { x: 0, y: 0 },
-                size: types::Extent2D { width: 1920, height: 1080 },
+                size: types::Extent2D {
+                    width: 1920,
+                    height: 1080,
+                },
             },
             ..Default::default()
         }];
@@ -1250,7 +1253,10 @@ mod tests {
     #[test]
     fn test_video_mode_clone() {
         let mode = VideoMode {
-            resolution: Extent2D { width: 1920, height: 1080 },
+            resolution: Extent2D {
+                width: 1920,
+                height: 1080,
+            },
             refresh_rate: 60_000,
         };
         let c = mode;

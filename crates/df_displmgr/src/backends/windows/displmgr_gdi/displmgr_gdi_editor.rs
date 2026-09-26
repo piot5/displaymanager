@@ -5,7 +5,7 @@
 //! [`UniversalTopology::commit`].
 
 use crate::backends::windows::displmgr_gdi::GdiTopology;
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::OutputEditable;
 use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 
@@ -37,7 +37,7 @@ impl<'a> GdiOutputEditor<'a> {
     }
 
     /// Helper: get mutable output state or return MonitorNotFound error.
-    fn get_output_mut(&mut self) -> DisplayResult<&mut OutputState> {
+    fn get_output_mut(&mut self) -> Result<&mut OutputState, DisplayManagerError> {
         self.topology
             .outputs
             .get_mut(&self.target_id)
@@ -49,31 +49,40 @@ impl<'a> OutputEditable for GdiOutputEditor<'a> {
     fn set_rotation(
         &mut self,
         rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.rotation = rotation;
         Ok(self)
     }
 
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.geometry.size = extent;
         Ok(self)
     }
 
-    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(
+        &mut self,
+        position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.geometry.origin = position;
         Ok(self)
     }
 
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.refresh_rate = rate;
         Ok(self)
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.topology.target_primary_id = Some(self.target_id.clone());
         Ok(self)
     }
@@ -82,14 +91,17 @@ impl<'a> OutputEditable for GdiOutputEditor<'a> {
         &mut self,
         state_val: HdrState,
         mode_val: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.hdr_state = state_val;
         state.hdr_mode = mode_val;
         Ok(self)
     }
 
-    fn set_scale(&mut self, scale_val: f64) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_scale(
+        &mut self,
+        scale_val: f64,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.scale = scale_val;
         Ok(self)
@@ -103,13 +115,19 @@ impl<'a> OutputEditable for GdiOutputEditor<'a> {
             .unwrap_or_default()
     }
 
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let state = self.get_output_mut()?;
         state.enabled = enabled;
         Ok(self)
     }
 
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let source_state = self
             .topology
             .outputs
@@ -128,7 +146,9 @@ impl<'a> OutputEditable for GdiOutputEditor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{self, DisplayIdentity, DisplayRotation, Extent2D, HdrMode, HdrState, Point2D};
+    use crate::types::{
+        self, DisplayIdentity, DisplayRotation, Extent2D, HdrMode, HdrState, Point2D,
+    };
 
     #[test]
     fn test_gdi_output_editor_set_enabled() {
@@ -147,7 +167,10 @@ mod tests {
                         },
                         geometry: types::Rect {
                             origin: Point2D { x: 0, y: 0 },
-                            size: Extent2D { width: 1920, height: 1080 },
+                            size: Extent2D {
+                                width: 1920,
+                                height: 1080,
+                            },
                         },
                         scale: 1.0,
                         rotation: DisplayRotation::Rotate0,
@@ -187,7 +210,10 @@ mod tests {
                         },
                         geometry: types::Rect {
                             origin: Point2D { x: 0, y: 0 },
-                            size: Extent2D { width: 1920, height: 1080 },
+                            size: Extent2D {
+                                width: 1920,
+                                height: 1080,
+                            },
                         },
                         rotation: DisplayRotation::Rotate0,
                         ..Default::default()
@@ -203,7 +229,10 @@ mod tests {
         let mut editor = GdiOutputEditor::new(&mut topo, "test".to_string());
         let result = editor.set_rotation(DisplayRotation::Rotate90);
         assert!(result.is_ok());
-        assert_eq!(topo.outputs.get("test").unwrap().rotation, DisplayRotation::Rotate90);
+        assert_eq!(
+            topo.outputs.get("test").unwrap().rotation,
+            DisplayRotation::Rotate90
+        );
     }
 
     #[test]
@@ -220,7 +249,10 @@ mod tests {
                         },
                         geometry: types::Rect {
                             origin: Point2D { x: 0, y: 0 },
-                            size: Extent2D { width: 1920, height: 1080 },
+                            size: Extent2D {
+                                width: 1920,
+                                height: 1080,
+                            },
                         },
                         ..Default::default()
                     },
@@ -254,7 +286,10 @@ mod tests {
                         },
                         geometry: types::Rect {
                             origin: Point2D { x: 0, y: 0 },
-                            size: Extent2D { width: 1920, height: 1080 },
+                            size: Extent2D {
+                                width: 1920,
+                                height: 1080,
+                            },
                         },
                         ..Default::default()
                     },
@@ -267,7 +302,10 @@ mod tests {
         };
 
         let mut editor = GdiOutputEditor::new(&mut topo, "test".to_string());
-        let result = editor.set_resolution(Extent2D { width: 3840, height: 2160 });
+        let result = editor.set_resolution(Extent2D {
+            width: 3840,
+            height: 2160,
+        });
         assert!(result.is_ok());
         assert_eq!(topo.outputs.get("test").unwrap().geometry.size.width, 3840);
         assert_eq!(topo.outputs.get("test").unwrap().geometry.size.height, 2160);
@@ -287,7 +325,10 @@ mod tests {
                         },
                         geometry: types::Rect {
                             origin: Point2D { x: 0, y: 0 },
-                            size: Extent2D { width: 1920, height: 1080 },
+                            size: Extent2D {
+                                width: 1920,
+                                height: 1080,
+                            },
                         },
                         ..Default::default()
                     },

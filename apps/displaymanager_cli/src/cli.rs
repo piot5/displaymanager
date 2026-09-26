@@ -14,10 +14,12 @@ pub enum OutputFormat {
 #[derive(Parser)]
 #[command(
     name = "displaymanager",
-    version = "1.0",
+    // Take the version from CARGO_PKG_VERSION instead of hardcoding it,
+    // otherwise `--version` reported 1.0 for a 0.1.1 crate.
+    version,
     about = "Unified Display/DDC Manager",
     subcommand_required = true,
-    arg_required_else_help = true,
+    arg_required_else_help = true
 )]
 pub struct Cli {
     /// Output format (global): text, json

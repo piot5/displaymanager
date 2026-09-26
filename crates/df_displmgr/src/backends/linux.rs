@@ -35,13 +35,13 @@
 //!
 //! All four backends provide the same [`UniversalTopology`] interface.
 //! Features that require compositor cooperation (e.g., HDR via
-//! `color-management-v1`) return [`DisplayError::UnsupportedFeature`]
+//! `color-management-v1`) return [`DisplayManagerError::UnsupportedFeature`]
 //! on backends that cannot support them.
 
 use async_trait::async_trait;
 use std::fmt;
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{DisplayId, OutputState};
 
@@ -132,13 +132,13 @@ pub enum LinuxTopology {
 
 impl LinuxTopology {
     /// Acquires the topology using automatic backend detection.
-    pub fn acquire() -> DisplayResult<Self> {
+    pub fn acquire() -> Result<Self, DisplayManagerError> {
         let variant = LinuxBackendVariant::detect();
         Self::with_backend(variant)
     }
 
     /// Acquires the topology using a specific backend variant.
-    pub fn with_backend(variant: LinuxBackendVariant) -> DisplayResult<Self> {
+    pub fn with_backend(variant: LinuxBackendVariant) -> Result<Self, DisplayManagerError> {
         match variant {
             LinuxBackendVariant::Wlr => {
                 let inner = displmgr_wlr::WlrTopology::acquire()?;
@@ -183,7 +183,7 @@ impl fmt::Debug for LinuxTopology {
 
 #[async_trait]
 impl UniversalTopology for LinuxTopology {
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         Self::acquire()
     }
 
@@ -196,7 +196,10 @@ impl UniversalTopology for LinuxTopology {
         }
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         match self {
             Self::Wlr(inner) => inner.edit_output(id),
             Self::Drm(inner) => inner.edit_output(id),
@@ -223,7 +226,7 @@ impl UniversalTopology for LinuxTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         match self {
             Self::Wlr(inner) => inner.validate().await,
             Self::Drm(inner) => inner.validate().await,
@@ -232,7 +235,7 @@ impl UniversalTopology for LinuxTopology {
         }
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         match self {
             Self::Wlr(inner) => inner.commit().await,
             Self::Drm(inner) => inner.commit().await,

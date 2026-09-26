@@ -4,18 +4,18 @@
 //! [`OutputEditable`] so the crate compiles on platforms other than Windows
 //! and Linux (e.g., macOS, WASM targets, or docs.rs documentation builds).
 //!
-//! All methods return [`DisplayError::UnsupportedFeature`] to ensure callers
+//! All methods return [`DisplayManagerError::UnsupportedFeature`] to ensure callers
 //! receive a clear, idiomatic error at runtime.
 
 use async_trait::async_trait;
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 
 /// Stub topology for unsupported platforms.
 ///
-/// Every method returns an [`DisplayError::UnsupportedFeature`] error.
+/// Every method returns an [`DisplayManagerError::UnsupportedFeature`] error.
 /// This type exists solely to satisfy the [`UniversalTopology`] trait
 /// bound on [`NativeTopology`](super::NativeTopology) during documentation
 /// builds and cross-platform compilation.
@@ -24,39 +24,48 @@ pub struct StubTopology;
 /// Stub output editor for unsupported platforms.
 ///
 /// All mutation methods return
-/// [`DisplayError::UnsupportedFeature`].
+/// [`DisplayManagerError::UnsupportedFeature`].
 pub struct StubOutputEditor;
 
 impl OutputEditable for StubOutputEditor {
     fn set_rotation(
         &mut self,
         _rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_resolution(&mut self, _extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn set_resolution(
+        &mut self,
+        _extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_position(&mut self, _position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn set_position(
+        &mut self,
+        _position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_refresh_rate(&mut self, _rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn set_refresh_rate(
+        &mut self,
+        _rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
@@ -65,26 +74,32 @@ impl OutputEditable for StubOutputEditor {
         &mut self,
         _state: HdrState,
         _mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_scale(&mut self, _scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn set_scale(&mut self, _scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn set_enabled(&mut self, _enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn set_enabled(
+        &mut self,
+        _enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    fn clone_from(&mut self, _source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
-        Err(DisplayError::UnsupportedFeature(
+    fn clone_from(
+        &mut self,
+        _source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
@@ -96,8 +111,8 @@ impl OutputEditable for StubOutputEditor {
 
 #[async_trait]
 impl UniversalTopology for StubTopology {
-    fn acquire() -> DisplayResult<Self> {
-        Err(DisplayError::UnsupportedFeature(
+    fn acquire() -> Result<Self, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
@@ -106,8 +121,11 @@ impl UniversalTopology for StubTopology {
         Vec::new()
     }
 
-    fn edit_output(&mut self, _id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
-        Err(DisplayError::UnsupportedFeature(
+    fn edit_output(
+        &mut self,
+        _id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
@@ -116,14 +134,14 @@ impl UniversalTopology for StubTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
-        Err(DisplayError::UnsupportedFeature(
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
-        Err(DisplayError::UnsupportedFeature(
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
             "platform not supported".into(),
         ))
     }

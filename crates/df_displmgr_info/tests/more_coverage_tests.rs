@@ -79,11 +79,17 @@ fn test_full_edid_struct_serialization() {
     let hdr_back: HdrMetadata = serde_json::from_str(&hdr_json).unwrap();
     // Verify fields manually
     assert_eq!(hdr.supports_sdr_eotf, hdr_back.supports_sdr_eotf);
-    assert_eq!(hdr.supports_hdr_traditional, hdr_back.supports_hdr_traditional);
+    assert_eq!(
+        hdr.supports_hdr_traditional,
+        hdr_back.supports_hdr_traditional
+    );
     assert_eq!(hdr.supports_smpte_st2084, hdr_back.supports_smpte_st2084);
     assert_eq!(hdr.supports_hlg, hdr_back.supports_hlg);
     assert_eq!(hdr.max_luminance_cd_m2, hdr_back.max_luminance_cd_m2);
-    assert_eq!(hdr.max_frame_average_luminance_cd_m2, hdr_back.max_frame_average_luminance_cd_m2);
+    assert_eq!(
+        hdr.max_frame_average_luminance_cd_m2,
+        hdr_back.max_frame_average_luminance_cd_m2
+    );
     assert_eq!(hdr.min_luminance_cd_m2, hdr_back.min_luminance_cd_m2);
 
     // AudioCapabilities with descriptors
@@ -94,8 +100,14 @@ fn test_full_edid_struct_serialization() {
     let audio_json = serde_json::to_string(&audio).unwrap();
     let audio_back: AudioCapabilities = serde_json::from_str(&audio_json).unwrap();
     // Verify fields manually
-    assert_eq!(audio.extra_audio_descriptors_count, audio_back.extra_audio_descriptors_count);
-    assert_eq!(audio.short_audio_descriptors, audio_back.short_audio_descriptors);
+    assert_eq!(
+        audio.extra_audio_descriptors_count,
+        audio_back.extra_audio_descriptors_count
+    );
+    assert_eq!(
+        audio.short_audio_descriptors,
+        audio_back.short_audio_descriptors
+    );
 
     // EdidData combining everything
     let edid = EdidData {

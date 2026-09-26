@@ -14,7 +14,7 @@
 //! why the operation is sound in context.
 
 use crate::ddc_trait::DdcControl;
-use crate::error::DdcError;
+use crate::error::DisplayManagerError;
 use df_core::constants::{DDC_RETRY_ATTEMPTS, DDC_RETRY_BASE_DELAY_MS};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -65,18 +65,18 @@ impl LinuxBackend {
     ///
     /// # Errors
     ///
-    /// Returns [`DdcError::AccessDenied`] if the process lacks permission
-    /// to open the device. Returns [`DdcError::BackendNotAvailable`] if
+    /// Returns [`DisplayManagerError::AccessDenied`] if the process lacks permission
+    /// to open the device. Returns [`DisplayManagerError::BackendNotAvailable`] if
     /// the device does not exist. Returns
-    /// [`DdcError::CommunicationFailed`] if the `I2C_SLAVE` ioctl fails.
-    fn open_device(&self) -> Result<File, DdcError> {
+    /// [`DisplayManagerError::CommunicationFailed`] if the `I2C_SLAVE` ioctl fails.
+    fn open_device(&self) -> Result<File, DisplayManagerError> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .open(&self.path)
             .map_err(|e| match e.kind() {
-                std::io::ErrorKind::PermissionDenied => DdcError::AccessDenied,
-                _ => DdcError::BackendNotAvailable {
+                std::io::ErrorKind::PermissionDenied => DisplayManagerError::AccessDenied,
+                _ => DisplayManagerError::BackendNotAvailable {
                     details: e.to_string(),
                 },
             })?;
@@ -94,7 +94,7 @@ impl LinuxBackend {
                 Self::DDC_I2C_ADDR as libc::c_ulong,
             ) < 0
             {
-                return Err(DdcError::CommunicationFailed {
+                return Err(DisplayManagerError::CommunicationFailed {
                     reason: format!("I2C_SLAVE ioctl failed for {}", self.path),
                 });
             }
@@ -124,15 +124,15 @@ impl DdcControl for LinuxBackend {
     ///
     /// # Errors
     ///
-    /// Returns [`DdcError::CommunicationFailed`] if the I²C read times
+    /// Returns [`DisplayManagerError::CommunicationFailed`] if the I²C read times
     /// out or the monitor's response is malformed. Each retry attempt
     /// includes details about the specific failure mode.
-    fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError> {
+    fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DisplayManagerError> {
         // Ensure only one thread communicates with the monitor at a time
         let _guard = self
             .lock
             .lock()
-            .map_err(|_| DdcError::CommunicationFailed {
+            .map_err(|_| DisplayManagerError::CommunicationFailed {
                 reason: "Mutex lock poisoned in linux backend (get_vcp_feature)".into(),
             })?;
 
@@ -145,8 +145,14 @@ impl DdcControl for LinuxBackend {
                     request[4] = self.calculate_checksum(&request[..4]);
 
                     if file.write_all(&request).is_err() {
-                        last_error = Some(format!("I2C write failed on {} (attempt {})", self.path, attempt + 1));
-                        thread::sleep(Duration::from_millis(Self::RETRY_BASE_DELAY_MS * (attempt as u64 + 1)));
+                        last_error = Some(format!(
+                            "I2C write failed on {} (attempt {})",
+                            self.path,
+                            attempt + 1
+                        ));
+                        thread::sleep(Duration::from_millis(
+                            Self::RETRY_BASE_DELAY_MS * (attempt as u64 + 1),
+                        ));
                         continue;
                     }
 
@@ -163,7 +169,9 @@ impl DdcControl for LinuxBackend {
                                         "DDC/CI checksum mismatch on {} (VCP 0x{:02X}): expected 0x{:02X}, got 0x{:02X}",
                                         self.path, code, response_checksum, response[10]
                                     ));
-                                    thread::sleep(Duration::from_millis(Self::RETRY_BASE_DELAY_MS * (attempt as u64 + 1)));
+                                    thread::sleep(Duration::from_millis(
+                                        Self::RETRY_BASE_DELAY_MS * (attempt as u64 + 1),
+                                    ));
                                     continue;
                                 }
 
@@ -180,20 +188,29 @@ impl DdcControl for LinuxBackend {
                         Err(e) => {
                             last_error = Some(format!(
                                 "I2C read error on {} (attempt {}): {}",
-                                self.path, attempt + 1, e
+                                self.path,
+                                attempt + 1,
+                                e
                             ));
                         }
                     }
                 }
                 Err(e) => {
-                    last_error = Some(format!("I2C open failed on {} (attempt {}): {}", self.path, attempt + 1, e));
+                    last_error = Some(format!(
+                        "I2C open failed on {} (attempt {}): {}",
+                        self.path,
+                        attempt + 1,
+                        e
+                    ));
                 }
             }
 
-            thread::sleep(Duration::from_millis(Self::RETRY_BASE_DELAY_MS * (attempt as u64 + 1)));
+            thread::sleep(Duration::from_millis(
+                Self::RETRY_BASE_DELAY_MS * (attempt as u64 + 1),
+            ));
         }
 
-        Err(DdcError::CommunicationFailed {
+        Err(DisplayManagerError::CommunicationFailed {
             reason: last_error.unwrap_or_else(|| format!("I2C read timeout on {}", self.path)),
         })
     }
@@ -205,12 +222,12 @@ impl DdcControl for LinuxBackend {
     ///
     /// # Errors
     ///
-    /// Returns [`DdcError::CommunicationFailed`] if the I²C write fails.
-    fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError> {
+    /// Returns [`DisplayManagerError::CommunicationFailed`] if the I²C write fails.
+    fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DisplayManagerError> {
         let _guard = self
             .lock
             .lock()
-            .map_err(|_| DdcError::CommunicationFailed {
+            .map_err(|_| DisplayManagerError::CommunicationFailed {
                 reason: "Mutex lock poisoned in linux backend (set_vcp_feature)".into(),
             })?;
 
@@ -227,7 +244,7 @@ impl DdcControl for LinuxBackend {
         request[6] = self.calculate_checksum(&request[..6]);
 
         file.write_all(&request)
-            .map_err(|e| DdcError::CommunicationFailed {
+            .map_err(|e| DisplayManagerError::CommunicationFailed {
                 reason: format!("I2C write error: {}", e),
             })?;
 
@@ -235,5 +252,4 @@ impl DdcControl for LinuxBackend {
         thread::sleep(Self::WRITE_DELAY);
         Ok(())
     }
-
 }

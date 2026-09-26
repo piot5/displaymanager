@@ -4,7 +4,7 @@
 //! All type definitions have been moved to `crates/df_core/src/lib.rs`.
 
 // Re-export unified types from df_core
-pub use df_core::{MonitorCapabilities, PowerState, InputSource, VcpCode};
+pub use df_core::{InputSource, MonitorCapabilities, PowerState, VcpCode};
 
 // Re-export error type for backward compatibility
 pub use df_core::DisplayManagerError as DdcError;

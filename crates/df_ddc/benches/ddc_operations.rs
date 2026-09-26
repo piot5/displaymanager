@@ -113,24 +113,12 @@ fn bench_parallel_probing(c: &mut Criterion) {
     group.bench_function("parallel_bus_collection", |b| {
         b.iter(|| {
             use rayon::prelude::*;
-            black_box(
-                i2c_paths
-                    .par_iter()
-                    .map(|p| p.as_str())
-                    .collect::<Vec<_>>(),
-            )
+            black_box(i2c_paths.par_iter().map(|p| p.as_str()).collect::<Vec<_>>())
         })
     });
 
     group.bench_function("sequential_bus_collection", |b| {
-        b.iter(|| {
-            black_box(
-                i2c_paths
-                    .iter()
-                    .map(|p| p.as_str())
-                    .collect::<Vec<_>>(),
-            )
-        })
+        b.iter(|| black_box(i2c_paths.iter().map(|p| p.as_str()).collect::<Vec<_>>()))
     });
 
     group.finish();

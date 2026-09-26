@@ -13,10 +13,7 @@ mod tests {
     #[test]
     fn test_display_device_construction() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
         assert_eq!(device.info, "Test Monitor");
         // Verify inner is not accessible (compile-time check)
@@ -27,12 +24,11 @@ mod tests {
     #[test]
     fn test_get_capabilities_accessor() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
-        let caps = device.get_capabilities().expect("get_capabilities should succeed");
+        let caps = device
+            .get_capabilities()
+            .expect("get_capabilities should succeed");
 
         assert_eq!(caps.brightness, 75);
         assert_eq!(caps.brightness_max, 100);
@@ -44,18 +40,19 @@ mod tests {
     #[test]
     fn test_get_vcp_feature_accessor() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
         // Test brightness (VCP 0x10)
-        let (cur, max) = device.get_vcp_feature(0x10).expect("brightness query should succeed");
+        let (cur, max) = device
+            .get_vcp_feature(0x10)
+            .expect("brightness query should succeed");
         assert_eq!(cur, 75);
         assert_eq!(max, 100);
 
         // Test contrast (VCP 0x12)
-        let (cur, max) = device.get_vcp_feature(0x12).expect("contrast query should succeed");
+        let (cur, max) = device
+            .get_vcp_feature(0x12)
+            .expect("contrast query should succeed");
         assert_eq!(cur, 50);
         assert_eq!(max, 100);
 
@@ -68,10 +65,7 @@ mod tests {
     #[test]
     fn test_set_vcp_feature_accessor() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
         let result = device.set_vcp_feature(0x10, 80);
         assert!(result.is_ok());
@@ -81,10 +75,7 @@ mod tests {
     #[test]
     fn test_set_power_accessor() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
         let result = device.set_power(PowerState::On);
         assert!(result.is_ok());
@@ -97,10 +88,7 @@ mod tests {
     #[test]
     fn test_set_input_accessor() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
         let result = device.set_input(InputSource::DisplayPort1);
         assert!(result.is_ok());
@@ -113,10 +101,7 @@ mod tests {
     #[test]
     fn test_set_brightness_accessor() {
         let backend = MockBackendWithCalls::new();
-        let device = DisplayDevice::new(
-            "Test Monitor".to_string(),
-            Box::new(backend),
-        );
+        let device = DisplayDevice::new("Test Monitor".to_string(), Box::new(backend));
 
         let result = device.set_brightness(50);
         assert!(result.is_ok());

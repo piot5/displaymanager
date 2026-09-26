@@ -345,18 +345,18 @@ pub fn monitor_info(query: &str, format: Option<crate::cli::OutputFormat>) -> an
 /// This allows inspecting EDID files without a live monitor connection.
 pub fn monitor_info_from_edid(query: &str, edid_path: &str) -> anyhow::Result<()> {
     use df_displmgr_info::parse_edid_file;
-    
+
     let edid = parse_edid_file(edid_path).context("Failed to parse EDID file")?;
-    
+
     println!("╔══════════════════════════════════════════════════════════╗");
     println!("║              Monitor Detail Report (from EDID file)    ║");
     println!("╚══════════════════════════════════════════════════════════╝");
     println!("  EDID File:     {}", edid_path);
     println!("  Query:         {}", query);
     println!();
-    
+
     print_edid_detail(&edid);
-    
+
     Ok(())
 }
 
@@ -461,7 +461,9 @@ pub fn write_edid_json(path: &str) -> anyhow::Result<()> {
 }
 
 #[allow(clippy::type_complexity)]
-static MONITOR_CACHE: std::sync::OnceLock<std::sync::Mutex<Option<(std::time::Instant, Vec<MonitorDetails>)>>> = std::sync::OnceLock::new();
+static MONITOR_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<Option<(std::time::Instant, Vec<MonitorDetails>)>>,
+> = std::sync::OnceLock::new();
 
 const CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(2);
 
@@ -503,7 +505,9 @@ pub fn resolve_monitor(query: &str) -> anyhow::Result<MonitorDetails> {
 /// Returns cached monitor data, refreshing if the cache is stale or empty.
 fn get_cached_monitor_data() -> anyhow::Result<Vec<MonitorDetails>> {
     let cache = MONITOR_CACHE.get_or_init(|| std::sync::Mutex::new(None));
-    let mut guard = cache.lock().map_err(|_| anyhow::anyhow!("Cache lock poisoned"))?;
+    let mut guard = cache
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Cache lock poisoned"))?;
 
     if let Some((timestamp, ref data)) = *guard {
         if timestamp.elapsed() < CACHE_TTL {
@@ -751,10 +755,25 @@ mod tests {
 
     #[test]
     fn test_format_output_tech() {
-        assert_eq!(format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(0)"), "Unknown (code 0)");
-        assert_eq!(format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(10)"), "VGA");
-        assert_eq!(format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(4)"), "HDMI");
-        assert_eq!(format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(5)"), "DisplayPort");
-        assert_eq!(format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(3)"), "DVI");
+        assert_eq!(
+            format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(0)"),
+            "Unknown (code 0)"
+        );
+        assert_eq!(
+            format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(10)"),
+            "VGA"
+        );
+        assert_eq!(
+            format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(4)"),
+            "HDMI"
+        );
+        assert_eq!(
+            format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(5)"),
+            "DisplayPort"
+        );
+        assert_eq!(
+            format_output_tech("DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(3)"),
+            "DVI"
+        );
     }
 }

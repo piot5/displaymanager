@@ -11,7 +11,7 @@ use wayland_protocols_wlr::output_management::v1::client::{
     zwlr_output_configuration_v1, zwlr_output_head_v1, zwlr_output_manager_v1, zwlr_output_mode_v1,
 };
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{
     DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, VideoMode,
@@ -253,8 +253,9 @@ impl Dispatch<zwlr_output_configuration_v1::ZwlrOutputConfigurationV1, ()> for W
 
 #[async_trait]
 impl UniversalTopology for WlrTopology {
-    fn acquire() -> DisplayResult<Self> {
-        let conn = Connection::connect_to_env().map_err(|_| DisplayError::ConnectionFailed)?;
+    fn acquire() -> Result<Self, DisplayManagerError> {
+        let conn =
+            Connection::connect_to_env().map_err(|_| DisplayManagerError::ConnectionFailed)?;
         let event_queue = conn.new_event_queue();
         let qh = event_queue.handle();
 
@@ -276,7 +277,7 @@ impl UniversalTopology for WlrTopology {
         wrapper
             .event_queue
             .roundtrip(&mut wrapper.state)
-            .map_err(|e| DisplayError::BackendError(e.to_string()))?;
+            .map_err(|e| DisplayManagerError::BackendError(e.to_string()))?;
 
         Ok(wrapper)
     }
@@ -289,7 +290,10 @@ impl UniversalTopology for WlrTopology {
             .collect()
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         let head_idx = self
             .state
             .heads
@@ -308,7 +312,7 @@ impl UniversalTopology for WlrTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         // On Wayland, validation happens during the test phase of the configuration application.
         // For the trait, we assume staged changes are valid until commit.
         Ok(())
@@ -325,14 +329,14 @@ impl UniversalTopology for WlrTopology {
     /// This protocol is not yet available in the `wayland-protocols-wlr` crate used
     /// by this crate. When HDR is requested:
     /// - If the compositor does not support `color-management-v1`, an
-    ///   [`DisplayError::UnsupportedFeature`] is returned.
+    ///   [`DisplayManagerError::UnsupportedFeature`] is returned.
     /// - Future support will require updating the protocol bindings to include HDR
     ///   metadata transfer via `zwlr_color_manager_v1`.
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         let manager = match self.state.manager.as_ref() {
             Some(m) => m,
             None => {
-                return Err(DisplayError::BackendError(
+                return Err(DisplayManagerError::BackendError(
                     "Output manager missing during Wayland commit initialization".into(),
                 ));
             }
@@ -359,14 +363,10 @@ impl UniversalTopology for WlrTopology {
             // in the wayland-protocols-wlr bindings. Return a clear error when HDR is
             // requested until the protocol can be properly integrated.
             if head.current_state.hdr_state == HdrState::Enabled {
-                return Err(
-                    DisplayError::UnsupportedFeature(
-                        format!(
-                            "HDR via color-management-v1 not yet supported on this compositor \
+                return Err(DisplayManagerError::UnsupportedFeature(format!(
+                    "HDR via color-management-v1 not yet supported on this compositor \
                             (protocol zwlr_color_manager_v1 not available in current bindings)"
-                        )
-                    )
-                )
+                )))
                 .context("HDR state change during Wayland commit");
             }
         }
@@ -380,11 +380,11 @@ impl UniversalTopology for WlrTopology {
         while self.state.sync_tx.is_some() {
             self.event_queue
                 .blocking_dispatch(&mut self.state)
-                .map_err(|e| DisplayError::BackendError(e.to_string()))?;
+                .map_err(|e| DisplayManagerError::BackendError(e.to_string()))?;
         }
 
         rx.await
-            .map_err(|_| DisplayError::BackendError("Sync failed during commit".into()))?;
+            .map_err(|_| DisplayManagerError::BackendError("Sync failed during commit".into()))?;
         Ok(())
     }
 }
@@ -393,12 +393,15 @@ impl<'a> OutputEditable for WlrOutputEditor<'a> {
     fn set_rotation(
         &mut self,
         rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.rotation = rotation;
         Ok(self)
     }
 
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.geometry.size = extent;
         Ok(self)
     }
@@ -406,17 +409,20 @@ impl<'a> OutputEditable for WlrOutputEditor<'a> {
     fn set_position(
         &mut self,
         position: crate::types::Point2D,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.geometry.origin = position;
         Ok(self)
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.is_primary = true;
         Ok(self)
     }
 
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.refresh_rate = rate;
         Ok(self)
     }
@@ -425,23 +431,29 @@ impl<'a> OutputEditable for WlrOutputEditor<'a> {
         &mut self,
         state: HdrState,
         mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.hdr_state = state;
         self.head.current_state.hdr_mode = mode;
         Ok(self)
     }
 
-    fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_scale(&mut self, scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.scale = scale;
         Ok(self)
     }
 
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         self.head.current_state.enabled = enabled;
         Ok(self)
     }
 
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let source_state = self
             .all_heads
             .iter()

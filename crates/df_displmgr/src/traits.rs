@@ -7,7 +7,7 @@
 
 use async_trait::async_trait;
 
-use crate::error::DisplayResult;
+use crate::error::DisplayManagerError;
 use crate::types::{DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D};
 
 /// Interface for modifying a specific display output's configuration.
@@ -42,10 +42,12 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::NotFound`] if the target output was removed
+    /// Returns [`DisplayManagerError::MonitorNotFound`] if the target output was removed
     /// between the initial lookup and this call.
-    fn set_rotation(&mut self, rotation: DisplayRotation)
-        -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_rotation(
+        &mut self,
+        rotation: DisplayRotation,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Sets the active resolution in pixels.
     ///
@@ -55,9 +57,12 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::ConfigurationRejected`] if the hardware rejects
+    /// Returns [`DisplayManagerError::ConfigurationRejected`] if the hardware rejects
     /// the requested resolution.
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Positions the display within the virtual coordinate space.
     ///
@@ -67,9 +72,12 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::NotFound`] if the target output was removed
+    /// Returns [`DisplayManagerError::MonitorNotFound`] if the target output was removed
     /// between the initial lookup and this call.
-    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_position(
+        &mut self,
+        position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Sets the refresh rate in millihertz (mHz).
     ///
@@ -79,9 +87,12 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::ConfigurationRejected`] if the refresh rate is
+    /// Returns [`DisplayManagerError::ConfigurationRejected`] if the refresh rate is
     /// not supported at the current resolution.
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Designates this output as the primary monitor.
     ///
@@ -91,9 +102,9 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::UnsupportedFeature`] if the backend does not
+    /// Returns [`DisplayManagerError::UnsupportedFeature`] if the backend does not
     /// support primary-monitor designation.
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Configures HDR state and color-volume profile.
     ///
@@ -103,11 +114,14 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::UnsupportedFeature`] if HDR is not available
-    /// on the current backend, or [`DisplayError::UnsupportedHardware`] if the
+    /// Returns [`DisplayManagerError::UnsupportedFeature`] if HDR is not available
+    /// on the current backend, or [`DisplayManagerError::UnsupportedHardware`] if the
     /// connected panel is SDR-only.
-    fn set_hdr(&mut self, state: HdrState, mode: HdrMode)
-        -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_hdr(
+        &mut self,
+        state: HdrState,
+        mode: HdrMode,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Sets the desktop scaling factor.
     ///
@@ -117,9 +131,9 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::ConfigurationRejected`] if the scale factor is
+    /// Returns [`DisplayManagerError::ConfigurationRejected`] if the scale factor is
     /// outside the hardware's supported range.
-    fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_scale(&mut self, scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Enables or disables the signal output for this display.
     ///
@@ -129,9 +143,12 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::UnsupportedFeature`] if the backend does not
+    /// Returns [`DisplayManagerError::UnsupportedFeature`] if the backend does not
     /// support dynamic output enable/disable.
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable>;
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Copies the configuration from another display identified by `source_id`.
     ///
@@ -141,9 +158,12 @@ pub trait OutputEditable {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::NotFound`] if `source_id` does not refer to a
+    /// Returns [`DisplayManagerError::MonitorNotFound`] if `source_id` does not refer to a
     /// valid output in the current topology.
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable>;
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError>;
 
     /// Returns a snapshot of the current configuration for this output.
     ///
@@ -187,10 +207,10 @@ pub trait UniversalTopology: Sized + Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::ConnectionFailed`] if the graphics subsystem
-    /// cannot be reached, or [`DisplayError::PermissionDenied`] if the process
+    /// Returns [`DisplayManagerError::ConnectionFailed`] if the graphics subsystem
+    /// cannot be reached, or [`DisplayManagerError::PermissionDenied`] if the process
     /// lacks the required privileges.
-    fn acquire() -> DisplayResult<Self>;
+    fn acquire() -> Result<Self, DisplayManagerError>;
 
     /// Returns all detected display outputs.
     ///
@@ -207,9 +227,12 @@ pub trait UniversalTopology: Sized + Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::NotFound`] if `id` does not correspond to any
+    /// Returns [`DisplayManagerError::MonitorNotFound`] if `id` does not correspond to any
     /// output in the current topology.
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>>;
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError>;
 
     /// Toggles persistence of configuration changes.
     ///
@@ -229,9 +252,9 @@ pub trait UniversalTopology: Sized + Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::ConfigurationRejected`] if the staged
+    /// Returns [`DisplayManagerError::ConfigurationRejected`] if the staged
     /// configuration is invalid.
-    async fn validate(&self) -> DisplayResult<()>;
+    async fn validate(&self) -> Result<(), DisplayManagerError>;
 
     /// Flushes all staged changes to the hardware.
     ///
@@ -241,8 +264,8 @@ pub trait UniversalTopology: Sized + Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns [`DisplayError::BackendError`] if the platform rejects the
-    /// commit, or [`DisplayError::StaleTopology`] if the topology has been
+    /// Returns [`DisplayManagerError::BackendError`] if the platform rejects the
+    /// commit, or [`DisplayManagerError::StaleTopology`] if the topology has been
     /// invalidated since the last acquire.
-    async fn commit(&mut self) -> DisplayResult<()>;
+    async fn commit(&mut self) -> Result<(), DisplayManagerError>;
 }

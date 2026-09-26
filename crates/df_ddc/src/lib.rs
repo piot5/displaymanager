@@ -173,9 +173,11 @@ pub fn list_monitors_with_progress() -> Vec<DisplayDevice> {
     let total = i2c_paths.len();
     let pb = ProgressBar::new(total as u64);
     pb.set_style(
-        ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
-            .unwrap()
-            .progress_chars("##-"),
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+        )
+        .unwrap()
+        .progress_chars("##-"),
     );
 
     let probed_devices = probe_i2c_buses(&i2c_paths, Some(&pb));
@@ -238,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_ddc_error_display() {
-        let err = crate::error::DdcError::UnsupportedFeature("HDR".into());
+        let err = crate::error::DisplayManagerError::UnsupportedFeature("HDR".into());
         assert!(err.to_string().contains("not supported"));
     }
 

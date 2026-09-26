@@ -4,6 +4,50 @@
 
 ### Windows FFI Null-Handle Edge Cases (18. Juli 2026)
 
+### CLI Dispatch & Integration Test Fix (20. Juli 2026)
+
+- `cargo fmt --all` ausgeführt → `cargo fmt --all -- --check` ist grün
+- CI repariert: MSRV-Toolchain 1.75.0 wird installiert, llvm-tools-preview ergänzt
+- Workflow-Duplikate entfernt (ci.yml: lint/test/msrv/coverage, test.yml: nur Matrix)
+- Kaputten `integration_tests`-Job entfernt (Testtarget existiert nicht)
+- Publish-Pipeline: `version` in allen Path-Deps → `cargo package` läuft; `df_core` zuerst
+- Repo-Hygiene: tarpaulin-report.html + async_results/ aus dem Index, .gitignore ergänzt
+- CHANGELOG/CONTRIBUTING/README aktualisiert (Release-Prozess, df_core im Member-Baum)
+- 4. Deprecated-Aliase migrieren (DdcError/DisplayError → DisplayManagerError)
+- 92 redundante Tests entfernt (480→388)
+- Entfernt: triviale Default-Tests (12 in df_displmgr/src/lib.rs)
+- Entfernt: duplizierte VCP/PowerState/InputSource-Tests (df_core, df_ddc, df_displmgr_info)
+- Konsolidiert: einzelne Wert-Tests zu Sammeltests
+- Gelöscht: `df_displmgr/tests/test_types.rs` (komplett redundant mit lib.rs)
+- Alle Tests bestehen weiterhin
+
+### Build-Blocker Behebung & Error-Konsolidierung (6. August 2026)
+
+- 3. Boilerplate-Tests bereinigen (~92 redundante Tests entfernen: 480→388)
+- Alle Priorität-0-Build-Blocker behoben (Workspace kompiliert mit 0 Fehlern)
+- Error-Type-Konsolidierung nachgezogen: DdcCommunication→CommunicationFailed, NotFound→MonitorNotFound, UnsupportedFeature Unit→Tuple
+- DisplayId/String-Mismatch in df_displmgr korrigiert (6x)
+- unsafe_op_in_unsafe_fn in displmgr_gdi_api.rs eingeschlossen (11x)
+- 65 verwaiste Root-Integrationstests gelöscht
+- Test-Count: 480 (df_core: 84, df_ddc: 77, df_displmgr: 135, df_displmgr_info: 121, CLI: 63)
+
+- `src/lib.rs:585` — `DisplayId(...)` → `"test".to_string()` (MonitorNotFound erwartet String)
+- `tests/core_tests.rs:9` — `DdcCommunication` → `CommunicationFailed { reason }`
+- `src/lib.rs` (test_ddc_error_display)
+- `src/test_utils.rs` (MockBackendWithCalls)
+- `tests/ddc_test.rs` (:40 Konstruktion, :61 matches!)
+- `tests/ddc_trait_test.rs` (:30 ok_or_else, :39 Err)
+- `tests/error_path_tests.rs` (:165, :239)
+- Tests `test_ddc_error_context`, `test_ddc_error_with_vcp_code`,
+- I. Aufräumen + Verifikation
+- `src/lib.rs:585` — `DisplayId(...)` → `"test".to_string()` (MonitorNotFound erwartet String)
+- `tests/core_tests.rs:9` — `DdcCommunication` → `CommunicationFailed { reason }`
+- `src/lib.rs` (test_ddc_error_display)
+- `src/test_utils.rs` (MockBackendWithCalls)
+- `tests/ddc_test.rs` (:40 Konstruktion, :61 matches!)
+- `tests/ddc_trait_test.rs` (:30 ok_or_else, :39 Err)
+- `tests/error_path_tests.rs` (:165, :239)
+- Tests `test_ddc_error_context`, `test_ddc_error_with_vcp_code`,
 - `error_path_tests.rs` — `DdcCommunication` → `CommunicationFailed { reason }`
 - `error_path_tests.rs` — `Platform` → (entfernt; AccessDenied ist Unit-Variante)
 - Conversion-Tests korrigiert: `DdcError` ist Type-Alias von `DisplayManagerError`,

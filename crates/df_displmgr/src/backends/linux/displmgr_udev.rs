@@ -11,7 +11,7 @@
 //! The backend queries udev for DRM connector devices and reads their
 //! properties from sysfs (e.g., `/sys/class/drm/card0-HDMI-1/`). It
 //! provides feature parity with the other Linux backends, returning
-//! [`DisplayError::UnsupportedFeature`] for operations that require
+//! [`DisplayManagerError::UnsupportedFeature`] for operations that require
 //! compositor cooperation (e.g., HDR via `color-management-v1`).
 //!
 //! # Limitations
@@ -26,7 +26,7 @@ use std::fmt;
 use std::path::Path;
 
 use crate::backends::overlap;
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{
     DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect,
@@ -117,7 +117,7 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
     fn set_rotation(
         &mut self,
         rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_udev_output!(self)?;
         if out.rotation != rotation {
             out.rotation = rotation;
@@ -126,7 +126,10 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_udev_output!(self)?;
         if out.geometry.size != extent {
             out.geometry.size = extent;
@@ -135,7 +138,10 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(
+        &mut self,
+        position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_udev_output!(self)?;
         if out.geometry.origin != position {
             out.geometry.origin = position;
@@ -144,7 +150,10 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_udev_output!(self)?;
         if out.refresh_rate != rate {
             out.refresh_rate = rate;
@@ -153,7 +162,7 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         for out in &mut self.topology.outputs {
             out.is_primary = false;
         }
@@ -167,15 +176,15 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         &mut self,
         _state: HdrState,
         _mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         // HDR requires compositor-level cooperation (color-management-v1).
         // The udev backend operates at the kernel level and cannot control HDR.
-        Err(DisplayError::UnsupportedFeature(
+        Err(DisplayManagerError::UnsupportedFeature(
             "HDR control requires a Wayland compositor or KDE Plasma environment".into(),
         ))
     }
 
-    fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_scale(&mut self, scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_udev_output!(self)?;
         if (out.scale - scale).abs() > f64::EPSILON {
             out.scale = scale;
@@ -184,7 +193,10 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_udev_output!(self)?;
         if out.enabled != enabled {
             out.enabled = enabled;
@@ -193,7 +205,10 @@ impl<'a> OutputEditable for UdevOutputEditor<'a> {
         Ok(self)
     }
 
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let source = self
             .topology
             .outputs
@@ -249,19 +264,21 @@ const DRM_SYSFS_PATH: &str = "/sys/class/drm";
 
 /// Checks if a DRM connector is connected by reading its status.
 fn is_connector_connected(connector_path: &Path) -> bool {
-    connector_path.join("status").exists() &&
-        std::fs::read_to_string(connector_path.join("status"))
+    connector_path.join("status").exists()
+        && std::fs::read_to_string(connector_path.join("status"))
             .map(|s| s.trim() == "connected")
             .unwrap_or(false)
 }
 
 /// Enumerates connected DRM connectors from sysfs.
 /// Returns a list of connector names (e.g., ["card0-HDMI-A-1", "card0-DP-2"]).
-fn enumerate_drm_connectors() -> DisplayResult<Vec<String>> {
+fn enumerate_drm_connectors() -> Result<Vec<String>, DisplayManagerError> {
     let drm_path = Path::new(DRM_SYSFS_PATH);
 
     if !drm_path.exists() {
-        return Err(DisplayError::UnsupportedPlatform("DRM sysfs not available".into()));
+        return Err(DisplayManagerError::UnsupportedPlatform(
+            "DRM sysfs not available".into(),
+        ));
     }
 
     let mut connectors = Vec::new();
@@ -287,7 +304,7 @@ fn enumerate_drm_connectors() -> DisplayResult<Vec<String>> {
 
 /// Queries udev/sysfs for connected display outputs.
 /// Returns a vector of UdevOutputState structures populated from DRM connector properties.
-fn query_udev_outputs() -> DisplayResult<Vec<UdevOutputState>> {
+fn query_udev_outputs() -> Result<Vec<UdevOutputState>, DisplayManagerError> {
     let connector_names = enumerate_drm_connectors()?;
 
     let mut outputs = Vec::new();
@@ -299,7 +316,10 @@ fn query_udev_outputs() -> DisplayResult<Vec<UdevOutputState>> {
             adapter_id: crate::types::AdapterId("/dev/dri/card0".to_string()),
             geometry: Rect {
                 origin: Point2D { x: 0, y: 0 },
-                size: Extent2D { width: 1920, height: 1080 }, // Default, would read from sysfs
+                size: Extent2D {
+                    width: 1920,
+                    height: 1080,
+                }, // Default, would read from sysfs
             },
             refresh_rate: 60_000, // Default 60Hz
             scale: 1.0,
@@ -325,7 +345,7 @@ fn query_udev_outputs() -> DisplayResult<Vec<UdevOutputState>> {
 // ---------------------------------------------------------------------------
 #[async_trait]
 impl UniversalTopology for UdevTopology {
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         // Try to enumerate DRM connectors from sysfs
         let outputs = query_udev_outputs().unwrap_or_default();
 
@@ -361,7 +381,10 @@ impl UniversalTopology for UdevTopology {
             .collect()
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         if !self.outputs.iter().any(|o| o.id == *id) {
             return Err(DisplayManagerError::MonitorNotFound(id.clone()));
         }
@@ -376,7 +399,7 @@ impl UniversalTopology for UdevTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         // Delegate to the shared overlap detection module for consistency
         // across all platform backends.
         overlap::check_overlap(
@@ -388,7 +411,7 @@ impl UniversalTopology for UdevTopology {
         )
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         if !self.dirty {
             return Ok(());
         }
@@ -399,6 +422,6 @@ impl UniversalTopology for UdevTopology {
         // udev-based commits require DRM atomic mode-setting, which needs
         // elevated privileges. In a production environment, this would
         // delegate to the DRM backend or a polkit-authorized helper.
-        Err(DisplayError::PermissionDenied)
+        Err(DisplayManagerError::PermissionDenied)
     }
 }

@@ -12,3 +12,7 @@ dist/
 edid_dump.txt
 edid.json
 cli_test_report.md
+tarpaulin-report.html
+coverage/
+async_results/
+

@@ -1,114 +1,114 @@
-use df_displmgr::error::DisplayError;
+use df_displmgr::error::DisplayManagerError;
 use df_displmgr::types::DisplayId;
 
-/// Test DisplayError::ConnectionFailed
+/// Test DisplayManagerError::ConnectionFailed
 #[test]
 fn test_connection_failed_error() {
-    let err = DisplayError::ConnectionFailed;
+    let err = DisplayManagerError::ConnectionFailed;
     assert!(err.to_string().contains("failed to connect"));
 }
 
-/// Test DisplayError::MonitorNotFound
+/// Test DisplayManagerError::MonitorNotFound
 #[test]
 fn test_not_found_error() {
     let id = DisplayId("HDMI-1".to_string());
-    let err = DisplayError::MonitorNotFound(id.to_string());
+    let err = DisplayManagerError::MonitorNotFound(id.to_string());
     assert!(err.to_string().contains("not found"));
     assert!(err.to_string().contains("HDMI-1"));
 }
 
-/// Test DisplayError::ConfigurationRejected
+/// Test DisplayManagerError::ConfigurationRejected
 #[test]
 fn test_configuration_rejected_error() {
-    let err = DisplayError::ConfigurationRejected;
+    let err = DisplayManagerError::ConfigurationRejected;
     assert!(err.to_string().contains("rejected"));
 }
 
-/// Test DisplayError::HdrError
+/// Test DisplayManagerError::HdrError
 #[test]
 fn test_hdr_error() {
-    let err = DisplayError::HdrError("invalid HDR metadata".to_string());
+    let err = DisplayManagerError::HdrError("invalid HDR metadata".to_string());
     assert!(err.to_string().contains("HDR error"));
     assert!(err.to_string().contains("invalid HDR metadata"));
 }
 
-/// Test DisplayError::UnsupportedFeature
+/// Test DisplayManagerError::UnsupportedFeature
 #[test]
 fn test_unsupported_feature_error() {
-    let err = DisplayError::UnsupportedFeature("color management".to_string());
+    let err = DisplayManagerError::UnsupportedFeature("color management".to_string());
     assert!(err.to_string().contains("feature not supported"));
     assert!(err.to_string().contains("color management"));
 }
 
-/// Test DisplayError::UnsupportedHardware
+/// Test DisplayManagerError::UnsupportedHardware
 #[test]
 fn test_unsupported_hardware_error() {
-    let err = DisplayError::UnsupportedHardware("HDR not available".to_string());
+    let err = DisplayManagerError::UnsupportedHardware("HDR not available".to_string());
     assert!(err.to_string().contains("hardware does not support"));
     assert!(err.to_string().contains("HDR not available"));
 }
 
-/// Test DisplayError::UnsupportedPlatform
+/// Test DisplayManagerError::UnsupportedPlatform
 #[test]
 fn test_unsupported_platform_error() {
-    let err = DisplayError::UnsupportedPlatform("force_all on Linux".to_string());
+    let err = DisplayManagerError::UnsupportedPlatform("force_all on Linux".to_string());
     assert!(err.to_string().contains("operation not supported"));
     assert!(err.to_string().contains("force_all on Linux"));
 }
 
-/// Test DisplayError::BackendError
+/// Test DisplayManagerError::BackendError
 #[test]
 fn test_backend_error() {
-    let err = DisplayError::BackendError("Win32 error 0x80070005".to_string());
+    let err = DisplayManagerError::BackendError("Win32 error 0x80070005".to_string());
     assert!(err.to_string().contains("platform-specific backend error"));
     assert!(err.to_string().contains("Win32 error"));
 }
 
-/// Test DisplayError::OutputDisabled
+/// Test DisplayManagerError::OutputDisabled
 #[test]
 fn test_output_disabled_error() {
     let id = DisplayId("DP-1".to_string());
-    let err = DisplayError::OutputDisabled(id.to_string());
+    let err = DisplayManagerError::OutputDisabled(id.to_string());
     assert!(err.to_string().contains("currently disabled"));
     assert!(err.to_string().contains("DP-1"));
 }
 
-/// Test DisplayError::StaleTopology
+/// Test DisplayManagerError::StaleTopology
 #[test]
 fn test_stale_topology_error() {
-    let err = DisplayError::StaleTopology;
+    let err = DisplayManagerError::StaleTopology;
     assert!(err.to_string().contains("stale"));
     assert!(err.to_string().contains("re-acquire"));
 }
 
-/// Test DisplayError::PermissionDenied
+/// Test DisplayManagerError::PermissionDenied
 #[test]
 fn test_permission_denied_error() {
-    let err = DisplayError::PermissionDenied;
+    let err = DisplayManagerError::PermissionDenied;
     assert!(err.to_string().contains("insufficient privileges"));
 }
 
-/// Test DisplayError::Timeout
+/// Test DisplayManagerError::Timeout
 #[test]
 fn test_timeout_error() {
-    let err = DisplayError::Timeout { timeout_ms: 5000 };
+    let err = DisplayManagerError::Timeout { timeout_ms: 5000 };
     assert!(err.to_string().contains("timeout"));
     assert!(err.to_string().contains("5000"));
 }
 
-/// Test DisplayError::Serialization
+/// Test DisplayManagerError::Serialization
 #[test]
 fn test_serialization_error() {
-    let err = DisplayError::Serialization("JSON parse failed".to_string());
+    let err = DisplayManagerError::Serialization("JSON parse failed".to_string());
     assert!(err.to_string().contains("serialization error"));
     assert!(err.to_string().contains("JSON parse failed"));
 }
 
-/// Test DisplayError::Io (from std::io::Error)
+/// Test DisplayManagerError::Io (from std::io::Error)
 #[test]
 fn test_io_error() {
     let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-    let err = DisplayError::Io(io_err);
+    let err = DisplayManagerError::Io(io_err);
     assert!(err.to_string().contains("I/O error"));
     assert!(err.to_string().contains("file not found"));
 }
@@ -116,20 +116,20 @@ fn test_io_error() {
 /// Test error Display trait implementation
 #[test]
 fn test_error_display_trait() {
-    let errors: Vec<DisplayError> = vec![
-        DisplayError::ConnectionFailed,
-        DisplayError::MonitorNotFound("test".into()),
-        DisplayError::ConfigurationRejected,
-        DisplayError::HdrError("test".into()),
-        DisplayError::UnsupportedFeature("test".into()),
-        DisplayError::UnsupportedHardware("test".into()),
-        DisplayError::UnsupportedPlatform("test".into()),
-        DisplayError::BackendError("test".into()),
-        DisplayError::OutputDisabled("test".into()),
-        DisplayError::StaleTopology,
-        DisplayError::PermissionDenied,
-        DisplayError::Timeout { timeout_ms: 100 },
-        DisplayError::Serialization("test".into()),
+    let errors: Vec<DisplayManagerError> = vec![
+        DisplayManagerError::ConnectionFailed,
+        DisplayManagerError::MonitorNotFound("test".into()),
+        DisplayManagerError::ConfigurationRejected,
+        DisplayManagerError::HdrError("test".into()),
+        DisplayManagerError::UnsupportedFeature("test".into()),
+        DisplayManagerError::UnsupportedHardware("test".into()),
+        DisplayManagerError::UnsupportedPlatform("test".into()),
+        DisplayManagerError::BackendError("test".into()),
+        DisplayManagerError::OutputDisabled("test".into()),
+        DisplayManagerError::StaleTopology,
+        DisplayManagerError::PermissionDenied,
+        DisplayManagerError::Timeout { timeout_ms: 100 },
+        DisplayManagerError::Serialization("test".into()),
     ];
 
     // All errors should be displayable
@@ -141,20 +141,20 @@ fn test_error_display_trait() {
 /// Test error Debug trait implementation
 #[test]
 fn test_error_debug_trait() {
-    let err = DisplayError::MonitorNotFound("HDMI-1".into());
+    let err = DisplayManagerError::MonitorNotFound("HDMI-1".into());
     let debug_str = format!("{:?}", err);
     assert!(debug_str.contains("NotFound"));
 }
 
-/// Test DisplayResult type alias
+/// Test the canonical `Result<T, DisplayManagerError>` signature used by the API.
 #[test]
 fn test_display_result_type() {
-    fn example_ok() -> df_displmgr::DisplayResult<String> {
+    fn example_ok() -> Result<String, DisplayManagerError> {
         Ok("success".to_string())
     }
 
-    fn example_err() -> df_displmgr::DisplayResult<String> {
-        Err(DisplayError::ConnectionFailed)
+    fn example_err() -> Result<String, DisplayManagerError> {
+        Err(DisplayManagerError::ConnectionFailed)
     }
 
     assert!(example_ok().is_ok());
@@ -164,15 +164,15 @@ fn test_display_result_type() {
 /// Test error propagation with ?
 #[test]
 fn test_error_propagation() {
-    fn might_fail(fail: bool) -> df_displmgr::DisplayResult<()> {
+    fn might_fail(fail: bool) -> Result<(), DisplayManagerError> {
         if fail {
-            Err(DisplayError::Timeout { timeout_ms: 1000 })
+            Err(DisplayManagerError::Timeout { timeout_ms: 1000 })
         } else {
             Ok(())
         }
     }
 
-    fn propagate(fail: bool) -> df_displmgr::DisplayResult<()> {
+    fn propagate(fail: bool) -> Result<(), DisplayManagerError> {
         might_fail(fail)?;
         Ok(())
     }
@@ -185,16 +185,16 @@ fn test_error_propagation() {
 #[test]
 fn test_error_matching() {
     let errors = vec![
-        DisplayError::ConnectionFailed,
-        DisplayError::StaleTopology,
-        DisplayError::PermissionDenied,
+        DisplayManagerError::ConnectionFailed,
+        DisplayManagerError::StaleTopology,
+        DisplayManagerError::PermissionDenied,
     ];
 
     for err in errors {
         match err {
-            DisplayError::ConnectionFailed
-            | DisplayError::StaleTopology
-            | DisplayError::PermissionDenied => {}
+            DisplayManagerError::ConnectionFailed
+            | DisplayManagerError::StaleTopology
+            | DisplayManagerError::PermissionDenied => {}
             _ => panic!("Unexpected error variant: {:?}", err),
         }
     }
@@ -207,10 +207,10 @@ fn test_error_with_display_ids() {
 
     for id_str in ids {
         let id = DisplayId(id_str.to_string());
-        let err = DisplayError::MonitorNotFound(id.to_string());
+        let err = DisplayManagerError::MonitorNotFound(id.to_string());
         assert!(err.to_string().contains(id_str));
 
-        let err2 = DisplayError::OutputDisabled(id.to_string());
+        let err2 = DisplayManagerError::OutputDisabled(id.to_string());
         assert!(err2.to_string().contains(id_str));
     }
 }
@@ -221,7 +221,7 @@ fn test_timeout_various_values() {
     let timeouts = vec![0, 1, 100, 1000, 60000];
 
     for timeout in timeouts {
-        let err = DisplayError::Timeout {
+        let err = DisplayManagerError::Timeout {
             timeout_ms: timeout,
         };
         let err_str = err.to_string();
@@ -235,10 +235,10 @@ fn test_io_error_conversion() {
     use std::io;
 
     let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
-    let display_err: df_displmgr::DisplayError = io_err.into();
+    let display_err: df_displmgr::DisplayManagerError = io_err.into();
 
     match display_err {
-        df_displmgr::DisplayError::Io(_) => {}
+        df_displmgr::DisplayManagerError::Io(_) => {}
         _ => panic!("Expected Io error variant, got: {:?}", display_err),
     }
 }
@@ -247,10 +247,10 @@ fn test_io_error_conversion() {
 #[test]
 fn test_error_messages_descriptive() {
     let test_cases = vec![
-        (DisplayError::ConnectionFailed, "connect"),
-        (DisplayError::ConfigurationRejected, "rejected"),
-        (DisplayError::StaleTopology, "re-acquire"),
-        (DisplayError::PermissionDenied, "privileges"),
+        (DisplayManagerError::ConnectionFailed, "connect"),
+        (DisplayManagerError::ConfigurationRejected, "rejected"),
+        (DisplayManagerError::StaleTopology, "re-acquire"),
+        (DisplayManagerError::PermissionDenied, "privileges"),
     ];
 
     for (err, expected_text) in test_cases {

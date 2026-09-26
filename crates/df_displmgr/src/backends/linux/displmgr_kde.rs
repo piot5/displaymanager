@@ -23,10 +23,11 @@ use async_trait::async_trait;
 use std::fmt;
 
 use crate::backends::overlap;
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{
-    DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect, ConnectorId, AdapterId,
+    AdapterId, ConnectorId, DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState,
+    Point2D, Rect,
 };
 
 // D-Bus interface names for KDE/KScreen
@@ -124,7 +125,7 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
     fn set_rotation(
         &mut self,
         rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if out.rotation != rotation {
             out.rotation = rotation;
@@ -133,7 +134,10 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if out.geometry.size != extent {
             out.geometry.size = extent;
@@ -142,7 +146,10 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(
+        &mut self,
+        position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if out.geometry.origin != position {
             out.geometry.origin = position;
@@ -151,7 +158,10 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if out.refresh_rate != rate {
             out.refresh_rate = rate;
@@ -160,7 +170,7 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         for out in &mut self.topology.outputs {
             out.is_primary = false;
         }
@@ -174,7 +184,7 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         &mut self,
         state: HdrState,
         mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if out.hdr_state != state || out.hdr_mode != mode {
             out.hdr_state = state;
@@ -184,7 +194,7 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_scale(&mut self, scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if (out.scale - scale).abs() > f64::EPSILON {
             out.scale = scale;
@@ -193,7 +203,10 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_kde_output!(self)?;
         if out.enabled != enabled {
             out.enabled = enabled;
@@ -202,7 +215,10 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
         Ok(self)
     }
 
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let source = self
             .topology
             .outputs
@@ -259,8 +275,10 @@ impl<'a> OutputEditable for KdeOutputEditor<'a> {
 fn is_kscreen_available() -> bool {
     // On Linux, check if KScreen service is running
     // This is a placeholder for the actual D-Bus name check
-    std::env::var("KDE_FULL_SESSION").is_ok() ||
-        std::env::var("XDG_CURRENT_DESKTOP").map(|v| v.contains("KDE")).unwrap_or(false)
+    std::env::var("KDE_FULL_SESSION").is_ok()
+        || std::env::var("XDG_CURRENT_DESKTOP")
+            .map(|v| v.contains("KDE"))
+            .unwrap_or(false)
 }
 
 // ---------------------------------------------------------------------------
@@ -268,10 +286,16 @@ fn is_kscreen_available() -> bool {
 // ---------------------------------------------------------------------------
 #[async_trait]
 impl UniversalTopology for KdeTopology {
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         // Check if KDE session is available
-        if std::env::var("KDE_FULL_SESSION").is_err() && std::env::var("XDG_CURRENT_DESKTOP").map(|v| !v.contains("KDE")).unwrap_or(true) {
-            return Err(DisplayError::UnsupportedPlatform("KDE Plasma session not detected".into()));
+        if std::env::var("KDE_FULL_SESSION").is_err()
+            && std::env::var("XDG_CURRENT_DESKTOP")
+                .map(|v| !v.contains("KDE"))
+                .unwrap_or(true)
+        {
+            return Err(DisplayManagerError::UnsupportedPlatform(
+                "KDE Plasma session not detected".into(),
+            ));
         }
 
         // Spawn D-Bus query in async context (required for zbus)
@@ -308,7 +332,10 @@ impl UniversalTopology for KdeTopology {
             .collect()
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         if !self.outputs.iter().any(|o| o.id == *id) {
             return Err(DisplayManagerError::MonitorNotFound(id.clone()));
         }
@@ -323,7 +350,7 @@ impl UniversalTopology for KdeTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         // Try to populate outputs from KScreen on first validation
         // This allows lazy loading when acquire() is called synchronously
         if self.outputs.is_empty() {
@@ -342,7 +369,7 @@ impl UniversalTopology for KdeTopology {
         )
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         if !self.dirty {
             return Ok(());
         }

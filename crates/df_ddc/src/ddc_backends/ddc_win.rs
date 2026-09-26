@@ -13,7 +13,7 @@
 
 use crate::ddc_trait::DdcControl;
 use crate::ddc_types::MonitorCapabilities;
-use crate::error::DdcError;
+use crate::error::DisplayManagerError;
 use windows::Win32::Devices::Display::*;
 use windows::Win32::Foundation::HANDLE;
 
@@ -51,11 +51,11 @@ impl DdcControl for WindowsBackend {
     ///
     /// # Errors
     ///
-    /// Returns [`DdcError::CommunicationFailed`] if the underlying
+    /// Returns [`DisplayManagerError::CommunicationFailed`] if the underlying
     /// `GetVCPFeatureAndVCPFeatureReply` call fails (e.g., the monitor
     /// does not support the requested VCP code, or the display has been
     /// disconnected).
-    fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError> {
+    fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DisplayManagerError> {
         let h = HANDLE(self.handle.as_ptr());
         let (mut current, mut max) = (0, 0);
 
@@ -67,7 +67,7 @@ impl DdcControl for WindowsBackend {
             if GetVCPFeatureAndVCPFeatureReply(h, code, None, &mut current, Some(&mut max)) != 0 {
                 Ok((current, max))
             } else {
-                Err(DdcError::CommunicationFailed {
+                Err(DisplayManagerError::CommunicationFailed {
                     reason: format!("Win32 GetVCPFeature failed for code {:#04x}", code),
                 })
             }
@@ -78,9 +78,9 @@ impl DdcControl for WindowsBackend {
     ///
     /// # Errors
     ///
-    /// Returns [`DdcError::CommunicationFailed`] if the underlying
+    /// Returns [`DisplayManagerError::CommunicationFailed`] if the underlying
     /// `SetVCPFeature` call fails.
-    fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError> {
+    fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DisplayManagerError> {
         let h = HANDLE(self.handle.as_ptr());
 
         // SAFETY: `SetVCPFeature` is called with a valid monitor handle
@@ -90,7 +90,7 @@ impl DdcControl for WindowsBackend {
             if SetVCPFeature(h, code, value) != 0 {
                 Ok(())
             } else {
-                Err(DdcError::CommunicationFailed {
+                Err(DisplayManagerError::CommunicationFailed {
                     reason: format!("Win32 SetVCPFeature failed for code {:#04x}", code),
                 })
             }
@@ -105,10 +105,10 @@ impl DdcControl for WindowsBackend {
     ///
     /// # Errors
     ///
-    /// Returns [`DdcError::CommunicationFailed`] if the brightness
+    /// Returns [`DisplayManagerError::CommunicationFailed`] if the brightness
     /// query fails. Contrast is best-effort; if it fails, defaults
     /// of 50/100 are returned.
-    fn get_capabilities(&self) -> Result<MonitorCapabilities, DdcError> {
+    fn get_capabilities(&self) -> Result<MonitorCapabilities, DisplayManagerError> {
         let h = HANDLE(self.handle.as_ptr());
         let (mut min_b, mut cur_b, mut max_b) = (0, 0, 0);
         let (mut min_c, mut cur_c, mut max_c) = (0, 0, 0);
@@ -118,7 +118,7 @@ impl DdcControl for WindowsBackend {
         // monitor handle is guaranteed valid.
         unsafe {
             if GetMonitorBrightness(h, &mut min_b, &mut cur_b, &mut max_b) == 0 {
-                return Err(DdcError::CommunicationFailed {
+                return Err(DisplayManagerError::CommunicationFailed {
                     reason: "Win32 GetMonitorBrightness failed".into(),
                 });
             }
@@ -140,5 +140,4 @@ impl DdcControl for WindowsBackend {
             })
         }
     }
-
 }

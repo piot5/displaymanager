@@ -4,7 +4,7 @@ use df_displmgr::traits::UniversalTopology;
 use df_displmgr::NativeTopology;
 
 #[tokio::main]
-async fn main() -> df_displmgr::DisplayResult<()> {
+async fn main() -> Result<(), df_displmgr::DisplayManagerError> {
     let topo = NativeTopology::acquire()?;
     let outputs = topo.get_outputs();
 

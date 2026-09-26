@@ -92,31 +92,23 @@ pub enum EdidError {
 impl From<EdidError> for df_core::DisplayManagerError {
     fn from(err: EdidError) -> Self {
         match err {
-            EdidError::BackendNotAvailable => {
-                df_core::DisplayManagerError::UnsupportedPlatform(
-                    "EDID backend not available".into()
-                )
-            }
-            EdidError::CommunicationFailed => {
-                df_core::DisplayManagerError::CommunicationFailed {
-                    reason: "EDID communication failed".into(),
-                }
-            }
+            EdidError::BackendNotAvailable => df_core::DisplayManagerError::UnsupportedPlatform(
+                "EDID backend not available".into(),
+            ),
+            EdidError::CommunicationFailed => df_core::DisplayManagerError::CommunicationFailed {
+                reason: "EDID communication failed".into(),
+            },
             EdidError::DdcError(msg) => {
                 df_core::DisplayManagerError::CommunicationFailed { reason: msg }
             }
-            EdidError::AccessDenied => {
-                df_core::DisplayManagerError::AccessDenied
-            }
+            EdidError::AccessDenied => df_core::DisplayManagerError::AccessDenied,
             EdidError::ParseError => {
                 df_core::DisplayManagerError::EdidParse("EDID parse error".into())
             }
             EdidError::NotFound => {
                 df_core::DisplayManagerError::MonitorNotFound("EDID data not found".into())
             }
-            EdidError::Io(e) => {
-                df_core::DisplayManagerError::Io(e)
-            }
+            EdidError::Io(e) => df_core::DisplayManagerError::Io(e),
             EdidError::Utf8Error(e) => {
                 df_core::DisplayManagerError::PlatformError(format!("UTF-8 error: {e}"))
             }

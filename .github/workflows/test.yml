@@ -1,77 +1,37 @@
-name: Test Suite
+name: Test Matrix
 
+# Linting, auditing and coverage live in ci.yml — this workflow only runs the
+# version matrix (stable + MSRV) and the weekly scheduled run.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
   schedule:
     - cron: '0 2 * * 1' # Weekly on Mondays at 2 AM UTC
+  workflow_dispatch:
 
 jobs:
   test:
-    name: Test
+    name: ${{ matrix.os }} / Rust ${{ matrix.rust }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, windows-2022]
-        rust: [stable, 1.75]
+        rust: ['stable', '1.75']
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.rust }}
 
-      - name: Clippy linting
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Build
-        run: cargo build --workspace
+      - name: Build (all targets)
+        run: cargo build --workspace --all-targets
 
       - name: Run tests
-        timeout-minutes: 10
-        run: cargo test --workspace --no-fail-fast -- --test-threads=2
-
-      - name: Run documentation tests
-        run: cargo test --workspace --doc
-
-  test-linux-specific:
-    name: Linux-specific tests
-    runs-on: ubuntu-22.04
-    if: github.event_name == 'push' && github.repository == 'piot5/displaymanager'
-    
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Run integration tests
-        run: cargo test --workspace --test integration_tests -- --ignored
-
-  coverage:
-    name: Coverage Report
-    runs-on: ubuntu-22.04
-    if: github.event_name == 'push'
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
-      
-      - name: Generate coverage
-        run: cargo tarpaulin --workspace --out Html --output-dir coverage
-      
-      - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage/cobertura.xml
-          fail_ci_if_error: false
+        timeout-minutes: 15
+        run: cargo test --workspace --no-fail-fast

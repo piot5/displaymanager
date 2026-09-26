@@ -6,13 +6,14 @@
 # DisplayManager (DisplayFlow)
 
 Cross-platform display configuration toolkit for Windows (Windows CCD / GDI / DDC/CI)
-and Linux (Wayland / wlroots / DRM / I2C-DDC). Cargo workspace with three library
+and Linux (Wayland / wlroots / DRM / I2C-DDC). Cargo workspace with four library
 crates and one application.
 
 ## Members
 
 | Path | Purpose |
 |---|---|
+| `crates/df_core` | Shared types, unified `DisplayManagerError`, VCP codes, GTF/CVT timing |
 | `crates/df_ddc` | DDC/CI monitor control backend (brightness, contrast, input, power) |
 | `crates/df_displmgr` | Display topology abstraction (modes, position, rotation) |
 | `crates/df_displmgr_info` | EDID parser and hardware telemetry |

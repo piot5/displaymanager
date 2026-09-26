@@ -7,12 +7,8 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
 
     let result = match &cli.command {
-        Commands::List { scan, output } => {
-            run_list(*scan, output.as_deref(), cli.format.as_ref())
-        }
-        Commands::Info { id, edid_file } => {
-            run_info(id, edid_file.as_deref())
-        }
+        Commands::List { scan, output } => run_list(*scan, output.as_deref(), cli.format.as_ref()),
+        Commands::Info { id, edid_file } => run_info(id, edid_file.as_deref()),
         Commands::Set {
             id,
             mode,
@@ -36,9 +32,7 @@ fn main() -> ExitCode {
             input,
             power,
             dry_run,
-        } => run_ddc(
-            id, brightness, contrast, volume, input, power, *dry_run,
-        ),
+        } => run_ddc(id, brightness, contrast, volume, input, power, *dry_run),
         Commands::Activate {
             id,
             resolution,

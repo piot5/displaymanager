@@ -25,12 +25,7 @@ use windows::Win32::Graphics::Gdi::*;
 pub fn enumerate_windows_monitors() -> Vec<DisplayDevice> {
     let mut list = Vec::new();
 
-    unsafe extern "system" fn callback(
-        h: HMONITOR,
-        _: HDC,
-        _: *mut RECT,
-        lp: LPARAM,
-    ) -> BOOL {
+    unsafe extern "system" fn callback(h: HMONITOR, _: HDC, _: *mut RECT, lp: LPARAM) -> BOOL {
         // SAFETY: The callback receives a valid LPARAM pointer to a Vec<DisplayDevice>.
         // The Vec is heap-allocated and outlives the EnumDisplayMonitors call.
         // HMONITOR is valid because it comes from EnumDisplayMonitors.

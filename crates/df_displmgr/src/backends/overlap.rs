@@ -28,7 +28,7 @@
 //! assert!(check_overlap(&outputs).is_ok());
 //! ```
 
-use crate::error::DisplayResult;
+use crate::error::DisplayManagerError;
 use crate::types::Rect;
 
 /// Trait for types that can be validated for geometric overlap.
@@ -45,7 +45,7 @@ pub trait OverlapCheckable {
 /// Performs a pairwise geometric overlap check across all outputs.
 ///
 /// Returns `Ok(())` if no two enabled outputs overlap. Returns
-/// `Err(DisplayError::ConfigurationRejected)` with a description
+/// `Err(DisplayManagerError::ConfigurationRejected)` with a description
 /// of the first detected overlap.
 ///
 /// # Type Parameters
@@ -55,9 +55,9 @@ pub trait OverlapCheckable {
 ///
 /// # Errors
 ///
-/// Returns [`DisplayError::ConfigurationRejected`](crate::error::DisplayError::ConfigurationRejected)
+/// Returns [`DisplayManagerError::ConfigurationRejected`](DisplayManagerError::ConfigurationRejected)
 /// if any two enabled outputs overlap in the virtual desktop coordinate space.
-pub fn check_overlap<T: OverlapCheckable>(outputs: &[T]) -> DisplayResult<()> {
+pub fn check_overlap<T: OverlapCheckable>(outputs: &[T]) -> Result<(), DisplayManagerError> {
     for (i, out_a) in outputs.iter().enumerate() {
         for out_b in outputs.iter().skip(i + 1) {
             if out_a.is_enabled() && out_b.is_enabled() {
@@ -72,7 +72,7 @@ pub fn check_overlap<T: OverlapCheckable>(outputs: &[T]) -> DisplayResult<()> {
                 let overlap_y = a.origin.y < b_y2 && a_y2 > b.origin.y;
 
                 if overlap_x && overlap_y {
-                    return Err(crate::error::DisplayError::ConfigurationRejected);
+                    return Err(crate::error::DisplayManagerError::ConfigurationRejected);
                 }
             }
         }

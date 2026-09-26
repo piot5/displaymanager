@@ -8,7 +8,7 @@ use drm::control::{atomic::AtomicModeReq, AtomicCommitFlags};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{
     AdapterId, DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect,
@@ -17,7 +17,7 @@ use crate::types::{
 pub mod displmgr_drm_api;
 pub mod displmgr_drm_sys;
 
-use self::displmgr_drm_api::{probe_drm_hardware, detect_drm_devices, probe_all_drm_devices};
+use self::displmgr_drm_api::{detect_drm_devices, probe_all_drm_devices, probe_drm_hardware};
 use self::displmgr_drm_sys::{rotation_to_drm_value, DrmPropertyCache, DrmResourceIds};
 
 /// Linux Direct Rendering Manager (DRM) Backend using Atomic KMS.
@@ -106,7 +106,7 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
     fn set_rotation(
         &mut self,
         rotation: DisplayRotation,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if out.rotation != rotation {
             out.rotation = rotation;
@@ -128,7 +128,10 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_resolution(&mut self, extent: Extent2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_resolution(
+        &mut self,
+        extent: Extent2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if out.geometry.size != extent {
             out.geometry.size = extent;
@@ -137,7 +140,10 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_position(&mut self, position: Point2D) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_position(
+        &mut self,
+        position: Point2D,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if out.geometry.origin != position {
             out.geometry.origin = position;
@@ -167,7 +173,10 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_refresh_rate(&mut self, rate: u32) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_refresh_rate(
+        &mut self,
+        rate: u32,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if out.refresh_rate != rate {
             out.refresh_rate = rate;
@@ -176,7 +185,7 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_primary(&mut self) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_primary(&mut self) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         for out in &mut self.topology.outputs {
             out.is_primary = false;
         }
@@ -190,7 +199,7 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         &mut self,
         state: HdrState,
         mode: HdrMode,
-    ) -> DisplayResult<&mut dyn OutputEditable> {
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if out.hdr_state != state || out.hdr_mode != mode {
             out.hdr_state = state;
@@ -216,7 +225,7 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_scale(&mut self, scale: f64) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_scale(&mut self, scale: f64) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if (out.scale - scale).abs() > f64::EPSILON {
             out.scale = scale;
@@ -225,7 +234,10 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn set_enabled(&mut self, enabled: bool) -> DisplayResult<&mut dyn OutputEditable> {
+    fn set_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let out = find_drm_output!(self)?;
         if out.enabled != enabled {
             out.enabled = enabled;
@@ -234,7 +246,10 @@ impl<'a> OutputEditable for DrmOutputEditor<'a> {
         Ok(self)
     }
 
-    fn clone_from(&mut self, source_id: &DisplayId) -> DisplayResult<&mut dyn OutputEditable> {
+    fn clone_from(
+        &mut self,
+        source_id: &DisplayId,
+    ) -> Result<&mut dyn OutputEditable, DisplayManagerError> {
         let source_state = self
             .topology
             .outputs
@@ -272,12 +287,12 @@ impl UniversalTopology for DrmTopology {
     ///
     /// Uses `probe_all_drm_devices()` to detect all available DRM devices
     /// and creates a unified topology containing outputs from all GPUs.
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         // Use probe_all_drm_devices for full multi-GPU support
         let (all_outputs, all_resource_maps, property_cache) = probe_all_drm_devices()?;
 
         if all_outputs.is_empty() {
-            return Err(DisplayError::ConnectionFailed);
+            return Err(DisplayManagerError::ConnectionFailed);
         }
 
         // Build the devices map from detected adapters
@@ -285,11 +300,7 @@ impl UniversalTopology for DrmTopology {
         for (adapter_id, _) in detect_drm_devices() {
             // Re-open devices to get fresh handles (original handles consumed by probe_all_drm_devices)
             let path = &adapter_id.0;
-            if let Ok(file) = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(path)
-            {
+            if let Ok(file) = OpenOptions::new().read(true).write(true).open(path) {
                 devices.entry(adapter_id.clone()).or_insert(file);
             }
         }
@@ -314,7 +325,10 @@ impl UniversalTopology for DrmTopology {
         self.outputs.clone()
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         if !self.outputs.iter().any(|o| o.identity.id == *id) {
             return Err(DisplayManagerError::MonitorNotFound(id.clone()));
         }
@@ -328,13 +342,13 @@ impl UniversalTopology for DrmTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         // Validate across all devices in multi-GPU setup
         for (adapter_id, device) in &self.devices {
             let flags = AtomicCommitFlags::TEST_ONLY;
             let req_clone = self.atomic_req.clone();
             if let Err(e) = device.atomic_commit(flags, req_clone) {
-                return Err(DisplayError::BackendError(format!(
+                return Err(DisplayManagerError::BackendError(format!(
                     "Validation failed on adapter {}: {}",
                     adapter_id.0, e
                 )));
@@ -348,7 +362,7 @@ impl UniversalTopology for DrmTopology {
     /// For multi-GPU setups, this iterates through all configured devices
     /// and applies the atomic commit to each. The requests are spawned
     /// as blocking tasks to avoid stalling the async runtime.
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         if !self.dirty {
             return Ok(());
         }
@@ -358,24 +372,30 @@ impl UniversalTopology for DrmTopology {
         // atomic requests per adapter and route properties to the correct device.
         // This implementation uses a simplified approach that commits to the first device
         // for backward compatibility while the multi-GPU commit logic matures.
-        
-        let primary_device = self.devices.iter()
+
+        let primary_device = self
+            .devices
+            .iter()
             .next()
             .map(|(_, f)| f)
-            .ok_or_else(|| DisplayError::ConnectionFailed)?;
+            .ok_or_else(|| DisplayManagerError::ConnectionFailed)?;
 
-        let device = primary_device.try_clone().map_err(|e| DisplayError::Io(e))?;
+        let device = primary_device
+            .try_clone()
+            .map_err(|e| DisplayManagerError::Io(e))?;
         let req = self.atomic_req.clone();
 
-        tokio::task::spawn_blocking(move || -> DisplayResult<()> {
+        tokio::task::spawn_blocking(move || -> Result<(), DisplayManagerError> {
             let flags = AtomicCommitFlags::ALLOW_MODESET;
             device.atomic_commit(flags, req).map_err(|e| {
-                DisplayError::BackendError(format!("KMS Atomic Flush Failure: {}", e))
+                DisplayManagerError::BackendError(format!("KMS Atomic Flush Failure: {}", e))
             })?;
             Ok(())
         })
         .await
-        .map_err(|e| DisplayError::BackendError(format!("DRM thread pool panic: {}", e)))??;
+        .map_err(|e| {
+            DisplayManagerError::BackendError(format!("DRM thread pool panic: {}", e))
+        })??;
 
         self.atomic_req = AtomicModeReq::new();
         self.dirty = false;

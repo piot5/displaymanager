@@ -23,9 +23,9 @@ pub use df_core::DisplayManagerError;
 /// # Examples
 ///
 /// ```rust
-/// use df_ddc::error::DdcError;
+/// use df_ddc::error::DisplayManagerError;
 ///
-/// let err = DdcError::AccessDenied;
+/// let err = DisplayManagerError::AccessDenied;
 /// assert!(err.to_string().contains("access denied"));
 /// ```
 #[deprecated(since = "0.2.0", note = "Use df_core::DisplayManagerError directly")]

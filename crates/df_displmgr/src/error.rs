@@ -14,11 +14,7 @@
 //! New code should use [`DisplayManagerError`] directly. The type aliases
 //! remain for backward compatibility but are deprecated.
 
-use thiserror::Error;
-
 pub use df_core::DisplayManagerError;
-
-use crate::types::DisplayId;
 
 /// Legacy error type for display management operations.
 ///
@@ -28,9 +24,9 @@ use crate::types::DisplayId;
 /// # Examples
 ///
 /// ```rust
-/// use df_displmgr::error::DisplayError;
+/// use df_displmgr::error::DisplayManagerError;
 ///
-/// let err = DisplayManagerError::MonitorNotFound(df_displmgr::DisplayId("HDMI-1".into()));
+/// let err = DisplayManagerError::MonitorNotFound("HDMI-1".into());
 /// assert!(err.to_string().contains("not found"));
 /// ```
 #[deprecated(since = "0.2.0", note = "Use df_core::DisplayManagerError directly")]
@@ -47,4 +43,4 @@ pub type DisplayErrorWithSource = DisplayManagerError;
 ///
 /// This type is deprecated. Use `Result<T, DisplayManagerError>` directly.
 #[deprecated(since = "0.2.0", note = "Use Result<T, DisplayManagerError> directly")]
-pub type DisplayResult<T> = Result<T, DisplayError>;
+pub type DisplayResult<T> = Result<T, DisplayManagerError>;

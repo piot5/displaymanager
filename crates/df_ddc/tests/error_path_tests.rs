@@ -1,19 +1,18 @@
-//! Error path tests for DdcError variants
+//! Error path tests for `DisplayManagerError` variants
 //!
-//! These tests validate error handling and propagation for all DdcError variants,
+//! These tests validate error handling and propagation for all `DisplayManagerError` variants,
 //! ensuring proper error messages and conversion to DisplayManagerError.
 
-use df_ddc::error::DdcError;
-use df_core::DisplayManagerError;
+use df_ddc::error::DisplayManagerError;
 
 // ============================================================================
-// DdcError::InvalidDevice Tests
+// DisplayManagerError::InvalidDevice Tests
 // ============================================================================
 
-/// Test DdcError::InvalidDevice error message formatting
+/// Test DisplayManagerError::InvalidDevice error message formatting
 #[test]
 fn test_ddc_error_invalid_device() {
-    let err = DdcError::InvalidDevice {
+    let err = DisplayManagerError::InvalidDevice {
         path: "/dev/i2c-5".to_string(),
     };
     let err_str = err.to_string();
@@ -29,7 +28,7 @@ fn test_ddc_error_invalid_device() {
     );
 }
 
-/// Test DdcError::InvalidDevice with different paths
+/// Test DisplayManagerError::InvalidDevice with different paths
 #[test]
 fn test_ddc_error_invalid_device_various_paths() {
     let paths = vec![
@@ -40,7 +39,7 @@ fn test_ddc_error_invalid_device_various_paths() {
     ];
 
     for path in paths {
-        let err = DdcError::InvalidDevice {
+        let err = DisplayManagerError::InvalidDevice {
             path: path.to_string(),
         };
         assert!(
@@ -52,13 +51,13 @@ fn test_ddc_error_invalid_device_various_paths() {
 }
 
 // ============================================================================
-// DdcError::BackendNotAvailable Tests
+// DisplayManagerError::BackendNotAvailable Tests
 // ============================================================================
 
-/// Test DdcError::BackendNotAvailable error message
+/// Test DisplayManagerError::BackendNotAvailable error message
 #[test]
 fn test_ddc_error_backend_not_available() {
-    let err = DdcError::BackendNotAvailable {
+    let err = DisplayManagerError::BackendNotAvailable {
         details: "No I2C devices found".to_string(),
     };
     let err_str = err.to_string();
@@ -74,7 +73,7 @@ fn test_ddc_error_backend_not_available() {
     );
 }
 
-/// Test DdcError::BackendNotAvailable with various detail messages
+/// Test DisplayManagerError::BackendNotAvailable with various detail messages
 #[test]
 fn test_ddc_error_backend_not_available_various_details() {
     let details = vec![
@@ -84,7 +83,7 @@ fn test_ddc_error_backend_not_available_various_details() {
     ];
 
     for detail in details {
-        let err = DdcError::BackendNotAvailable {
+        let err = DisplayManagerError::BackendNotAvailable {
             details: detail.to_string(),
         };
         assert!(
@@ -96,13 +95,13 @@ fn test_ddc_error_backend_not_available_various_details() {
 }
 
 // ============================================================================
-// DdcError::CommunicationFailed Tests
+// DisplayManagerError::CommunicationFailed Tests
 // ============================================================================
 
-/// Test DdcError::CommunicationFailed error message
+/// Test DisplayManagerError::CommunicationFailed error message
 #[test]
 fn test_ddc_error_communication_failed() {
-    let err = DdcError::CommunicationFailed {
+    let err = DisplayManagerError::CommunicationFailed {
         reason: "I2C bus timeout".to_string(),
     };
     let err_str = err.to_string();
@@ -118,7 +117,7 @@ fn test_ddc_error_communication_failed() {
     );
 }
 
-/// Test DdcError::CommunicationFailed with various reasons
+/// Test DisplayManagerError::CommunicationFailed with various reasons
 #[test]
 fn test_ddc_error_communication_failed_various_reasons() {
     let reasons = vec![
@@ -128,7 +127,7 @@ fn test_ddc_error_communication_failed_various_reasons() {
     ];
 
     for reason in reasons {
-        let err = DdcError::CommunicationFailed {
+        let err = DisplayManagerError::CommunicationFailed {
             reason: reason.to_string(),
         };
         assert!(
@@ -140,13 +139,13 @@ fn test_ddc_error_communication_failed_various_reasons() {
 }
 
 // ============================================================================
-// DdcError::AccessDenied Tests
+// DisplayManagerError::AccessDenied Tests
 // ============================================================================
 
-/// Test DdcError::AccessDenied error message
+/// Test DisplayManagerError::AccessDenied error message
 #[test]
 fn test_ddc_error_access_denied() {
-    let err = DdcError::AccessDenied;
+    let err = DisplayManagerError::AccessDenied;
     let err_str = err.to_string();
     assert!(
         err_str.contains("access denied") || err_str.contains("permissions"),
@@ -156,13 +155,13 @@ fn test_ddc_error_access_denied() {
 }
 
 // ============================================================================
-// DdcError::UnsupportedFeature Tests
+// DisplayManagerError::UnsupportedFeature Tests
 // ============================================================================
 
-/// Test DdcError::UnsupportedFeature error message
+/// Test DisplayManagerError::UnsupportedFeature error message
 #[test]
 fn test_ddc_error_unsupported_feature() {
-    let err = DdcError::UnsupportedFeature("HDR".into());
+    let err = DisplayManagerError::UnsupportedFeature("HDR".into());
     let err_str = err.to_string();
     assert!(
         err_str.contains("not supported"),
@@ -172,19 +171,19 @@ fn test_ddc_error_unsupported_feature() {
 }
 
 // ============================================================================
-// DdcError to DisplayManagerError Conversion Tests
+// Variant preservation (the deprecated `DdcError` alias is the same type)
 // ============================================================================
 
-/// Test DdcError to DisplayManagerError conversion for InvalidDevice.
+/// Test that `DisplayManagerError::InvalidDevice` survives a move unchanged.
 ///
-/// Note: `DdcError` is a type alias for `DisplayManagerError`, so `.into()`
-/// preserves the variant unchanged.
+/// The deprecated `DdcError` alias is identical to `DisplayManagerError`,
+/// so this move cannot change the variant.
 #[test]
 fn test_ddc_error_to_display_manager_error_invalid_device() {
-    let ddc_err = DdcError::InvalidDevice {
+    let ddc_err = DisplayManagerError::InvalidDevice {
         path: "test-device".to_string(),
     };
-    let dm_err: DisplayManagerError = ddc_err.into();
+    let dm_err: DisplayManagerError = ddc_err;
     match &dm_err {
         DisplayManagerError::InvalidDevice { path } => {
             assert!(path.contains("test-device"));
@@ -193,16 +192,16 @@ fn test_ddc_error_to_display_manager_error_invalid_device() {
     }
 }
 
-/// Test DdcError to DisplayManagerError conversion for BackendNotAvailable.
+/// Test that `DisplayManagerError::BackendNotAvailable` survives a move unchanged.
 ///
-/// Note: `DdcError` is a type alias for `DisplayManagerError`, so `.into()`
-/// preserves the variant unchanged.
+/// The deprecated `DdcError` alias is identical to `DisplayManagerError`,
+/// so this move cannot change the variant.
 #[test]
 fn test_ddc_error_to_display_manager_error_backend_not_available() {
-    let ddc_err = DdcError::BackendNotAvailable {
+    let ddc_err = DisplayManagerError::BackendNotAvailable {
         details: "Linux backend unavailable".to_string(),
     };
-    let dm_err: DisplayManagerError = ddc_err.into();
+    let dm_err: DisplayManagerError = ddc_err;
     match &dm_err {
         DisplayManagerError::BackendNotAvailable { details } => {
             assert!(details.contains("Linux backend unavailable"));
@@ -211,16 +210,16 @@ fn test_ddc_error_to_display_manager_error_backend_not_available() {
     }
 }
 
-/// Test DdcError to DisplayManagerError conversion for CommunicationFailed.
+/// Test that `DisplayManagerError::CommunicationFailed` survives a move unchanged.
 ///
-/// Note: `DdcError` is a type alias for `DisplayManagerError`, so `.into()`
-/// preserves the variant unchanged.
+/// The deprecated `DdcError` alias is identical to `DisplayManagerError`,
+/// so this move cannot change the variant.
 #[test]
 fn test_ddc_error_to_display_manager_error_communication_failed() {
-    let ddc_err = DdcError::CommunicationFailed {
+    let ddc_err = DisplayManagerError::CommunicationFailed {
         reason: "timeout".to_string(),
     };
-    let dm_err: DisplayManagerError = ddc_err.into();
+    let dm_err: DisplayManagerError = ddc_err;
     match &dm_err {
         DisplayManagerError::CommunicationFailed { reason } => {
             assert!(reason.contains("timeout"));
@@ -229,14 +228,14 @@ fn test_ddc_error_to_display_manager_error_communication_failed() {
     }
 }
 
-/// Test DdcError to DisplayManagerError conversion for AccessDenied.
+/// Test that `DisplayManagerError::AccessDenied` survives a move unchanged.
 ///
-/// Note: `DdcError` is a type alias for `DisplayManagerError`, so `.into()`
-/// preserves the variant unchanged.
+/// The deprecated `DdcError` alias is identical to `DisplayManagerError`,
+/// so this move cannot change the variant.
 #[test]
 fn test_ddc_error_to_display_manager_error_access_denied() {
-    let ddc_err = DdcError::AccessDenied;
-    let dm_err: DisplayManagerError = ddc_err.into();
+    let ddc_err = DisplayManagerError::AccessDenied;
+    let dm_err: DisplayManagerError = ddc_err;
     assert!(
         dm_err.to_string().contains("access denied"),
         "AccessDenied message should mention access denied"
@@ -247,14 +246,14 @@ fn test_ddc_error_to_display_manager_error_access_denied() {
     }
 }
 
-/// Test DdcError to DisplayManagerError conversion for UnsupportedFeature.
+/// Test that `DisplayManagerError::UnsupportedFeature` survives a move unchanged.
 ///
-/// Note: `DdcError` is a type alias for `DisplayManagerError`, so `.into()`
-/// preserves the variant unchanged.
+/// The deprecated `DdcError` alias is identical to `DisplayManagerError`,
+/// so this move cannot change the variant.
 #[test]
 fn test_ddc_error_to_display_manager_error_unsupported_feature() {
-    let ddc_err = DdcError::UnsupportedFeature("VCP 0xFF".into());
-    let dm_err: DisplayManagerError = ddc_err.into();
+    let ddc_err = DisplayManagerError::UnsupportedFeature("VCP 0xFF".into());
+    let dm_err: DisplayManagerError = ddc_err;
     match &dm_err {
         DisplayManagerError::UnsupportedFeature(msg) => {
             assert!(msg.contains("VCP"));

@@ -263,10 +263,10 @@ fn test_deep_ddc_stats_serialization() {
     let s = DeepDdcStats {
         core_caps: MonitorCapabilities {
             brightness: 50,
-        brightness_min: 0,
+            brightness_min: 0,
             brightness_max: 100,
             contrast: 70,
-        contrast_min: 0,
+            contrast_min: 0,
             contrast_max: 100,
         },
         input_source: InputSource::Hdmi1,

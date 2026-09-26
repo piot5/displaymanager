@@ -169,7 +169,7 @@ unsafe fn get_internal_deep_ddc_stats(gdi_name: &str) -> Option<DeepDdcStats> {
     }
 
     unsafe {
-        EnumDisplayMonitors(
+        let _ = EnumDisplayMonitors(
             None,
             None,
             Some(enum_proc),

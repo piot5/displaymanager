@@ -55,7 +55,7 @@ zbus = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-df_displmgr_info = { path = "../df_displmgr_info", version = "0.1.0" }
+df_displmgr_info = { path = "../df_displmgr_info", version = "0.1.1" }
 tokio = { workspace = true, features = ["test-util", "macros"] }
 
 [[bench]]

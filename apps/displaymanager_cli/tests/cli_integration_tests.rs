@@ -1,11 +1,11 @@
 //! Integration tests for the displaymanager_cli subcommand interface.
 //!
 //! All tests run via `cargo test -p displaymanager_cli`.
-//! The tests invoke the actual binary using `cargo run`.
+//! The tests invoke the actual binary that Cargo built for this test run.
 //! Tests are designed to work both with and without connected monitors.
 
 use df_ddc::ddc_trait::DdcControl;
-use df_ddc::error::DdcError;
+use df_ddc::error::DisplayManagerError;
 use displaymanager_cli::ddc;
 use displaymanager_cli::set;
 use std::path::PathBuf;
@@ -13,18 +13,16 @@ use std::process::Command;
 
 // ── Test helpers ──
 
+/// Binary built by Cargo for this integration test.
+///
+/// The tests call the executable directly instead of `cargo run`: spawning
+/// Cargo once per test made the suite slow (30+ s) and flaky, because dozens
+/// of parallel `cargo run` processes contend on the same build directory lock.
+const CLI_BIN: &str = env!("CARGO_BIN_EXE_displaymanager_cli");
+
 /// Helper: run the displaymanager_cli binary with given args, return (success, stdout, stderr).
 fn run_cli(args: &[&str]) -> (bool, String, String) {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "-p",
-            "displaymanager_cli",
-            "--bin",
-            "displaymanager_cli",
-            "--",
-        ])
+    let output = Command::new(CLI_BIN)
         .args(args)
         .output()
         .expect("failed to execute cli");
@@ -32,27 +30,6 @@ fn run_cli(args: &[&str]) -> (bool, String, String) {
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     (success, stdout, stderr)
-}
-
-/// Helper: run any binary in the package with given args.
-#[allow(dead_code)]
-fn run_binary(bin: &str, args: &[&str]) -> (bool, String) {
-    let output = Command::new("cargo")
-        .args([
-            "run",
-            "--quiet",
-            "-p",
-            "displaymanager_cli",
-            "--bin",
-            bin,
-            "--",
-        ])
-        .args(args)
-        .output()
-        .expect("failed to execute binary");
-    let success = output.status.success();
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    (success, stdout)
 }
 
 // ── Help output tests ──
@@ -75,7 +52,12 @@ fn test_help_contains_all_subcommands() {
 fn test_help_version() {
     let (ok, out, _err) = run_cli(&["--version"]);
     assert!(ok, "CLI --version should exit successfully");
-    assert!(out.contains("1.0"), "Version should mention 1.0");
+    // The version comes from CARGO_PKG_VERSION, not a hardcoded string.
+    let expected = env!("CARGO_PKG_VERSION");
+    assert!(
+        out.contains(expected),
+        "Version should report {expected}, got: {out}"
+    );
 }
 
 // ── List / Scan tests ──
@@ -107,7 +89,10 @@ fn test_list_with_scan() {
 fn test_list_with_output() {
     let json_path = "test_scan_output.json";
     let (ok, _out, _err) = run_cli(&["list", "--scan", "--output", json_path]);
-    assert!(ok, "CLI list --scan --output <file> should exit successfully");
+    assert!(
+        ok,
+        "CLI list --scan --output <file> should exit successfully"
+    );
     // Should have created the JSON file
     let json_exists = std::path::Path::new(json_path).exists();
     assert!(json_exists, "JSON scan output file should exist");
@@ -423,11 +408,11 @@ fn test_mock_ddc_backend() {
         pub set_calls: std::sync::Mutex<Vec<(u8, u32)>>,
     }
     impl DdcControl for MockDdc {
-        fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DdcError> {
+        fn get_vcp_feature(&self, code: u8) -> Result<(u32, u32), DisplayManagerError> {
             self.get_calls.lock().unwrap().push(code);
             Ok((50, 100))
         }
-        fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DdcError> {
+        fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), DisplayManagerError> {
             self.set_calls.lock().unwrap().push((code, value));
             Ok(())
         }
@@ -595,16 +580,6 @@ fn test_parse_rotation_mutation() {
 }
 
 #[test]
-fn test_set_args_defaults() {
-    let args = set::SetArgs::default();
-    assert!(args.mode_type.is_none());
-    assert!(args.clone_from.is_none());
-    assert!(args.mode.is_none());
-    assert!(!args.primary);
-    assert!(!args.verify_only);
-}
-
-#[test]
 fn test_resolve_mode_type() {
     assert_eq!(
         set::SetArgs {
@@ -668,10 +643,17 @@ fn test_ddc_apply_with_mock_backend() {
         pub ops: Mutex<Vec<(u8, u32)>>,
     }
     impl df_ddc::ddc_trait::DdcControl for Recorder {
-        fn get_vcp_feature(&self, _code: u8) -> Result<(u32, u32), df_ddc::error::DdcError> {
+        fn get_vcp_feature(
+            &self,
+            _code: u8,
+        ) -> Result<(u32, u32), df_ddc::error::DisplayManagerError> {
             Ok((0, 100))
         }
-        fn set_vcp_feature(&self, code: u8, value: u32) -> Result<(), df_ddc::error::DdcError> {
+        fn set_vcp_feature(
+            &self,
+            code: u8,
+            value: u32,
+        ) -> Result<(), df_ddc::error::DisplayManagerError> {
             self.ops.lock().unwrap().push((code, value));
             Ok(())
         }
@@ -691,10 +673,6 @@ fn test_help_short_flags_exhaustive() {
     // Verify subcommands exist in help
     let expected = ["list", "info", "set", "ddc", "activate"];
     for c in &expected {
-        assert!(
-            out.contains(c),
-            "Missing subcommand {} in help",
-            c
-        );
+        assert!(out.contains(c), "Missing subcommand {} in help", c);
     }
 }

@@ -11,7 +11,7 @@ use df_displmgr::{
 };
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> df_displmgr::DisplayResult<()> {
+async fn main() -> Result<(), df_displmgr::DisplayManagerError> {
     println!("================================================");
     println!("  Basic Topology Operations");
     println!("================================================");

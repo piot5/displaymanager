@@ -6,45 +6,85 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  test:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  lint:
+    name: Lint & Audit
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy,rustfmt
-      - name: MSRV check
-        run: cargo +1.75.0 check --workspace --all-targets
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: cargo-registry-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: cargo-index-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache target dir
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: cargo-target-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install cargo-audit and llvm-cov
-        run: cargo install cargo-audit --locked && cargo install cargo-llvm-cov --locked
       - name: Check formatting
         run: cargo fmt --all -- --check
-      - name: Clippy (all targets)
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      - name: Audit
+      - name: Clippy (all targets, all features)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Audit dependencies
         run: cargo audit
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
+      - name: Build (all targets)
+        run: cargo build --workspace --all-targets
       - name: Test (workspace)
-        run: cargo test --workspace 2>&1
-      - name: Test coverage (displaymanager_cli)
-        run: cargo test -p displaymanager_cli 2>&1
-      - name: Coverage report
+        run: cargo test --workspace --no-fail-fast
+      - name: Test (doctests)
+        run: cargo test --workspace --doc
+
+  msrv:
+    name: MSRV check (Rust 1.75.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The MSRV toolchain must be installed explicitly, otherwise the
+      # `cargo +1.75.0` invocation below fails with "toolchain not installed".
+      - name: Install Rust 1.75.0
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.75.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv
+      - name: cargo +1.75.0 check
+        run: cargo +1.75.0 check --workspace --all-targets
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # llvm-tools-preview is required by cargo-llvm-cov's instrumented runs.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Collect coverage
         run: cargo llvm-cov --workspace --all-targets --codecov --output-dir coverage
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/lcov.info
+          fail_ci_if_error: false
+

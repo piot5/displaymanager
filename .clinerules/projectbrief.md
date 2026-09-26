@@ -8,7 +8,7 @@ Displaymanager ist ein Rust-basiertes Multi-Plattform-Tool zur Anzeigesteuerung 
 - **DRM/KMS** Linux Backend
 - **Windows API** Multi-Monitor-Management
 
-## Aktuelle Status (Juli 2026)
+## Aktuelle Status (August 2026)
 
 ### Abgeschlossen
 - Dependency-Optimierung (Tokio, Clap, Feature-Flags)
@@ -17,7 +17,15 @@ Displaymanager ist ein Rust-basiertes Multi-Plattform-Tool zur Anzeigesteuerung 
 - Wayland Integration (435 Zeilen, wlr_output_management_v1)
 - DRM/Linux Backend (333 Zeilen, Atomic KMS)
 - CLI UX Verbesserungen (--dry-run, --format)
-- **533 Tests implementiert** (vollständig bestanden)
+- Error-Type-Konsolidierung (DisplayManagerError unified)
+- Boilerplate-Test-Bereinigung (92 redundante Tests entfernt: 480→388)
+- Deprecated-Aliase migriert (DdcError/DisplayError/DisplayResult → DisplayManagerError)
+- Clippy `-D warnings` und `cargo fmt --check` sind clean
+- CI grün-fähig: MSRV-Toolchain-Install, llvm-tools-preview, Coverage-Job, keine Duplikate
+- Publish-Pipeline repariert (Versionsangaben in Path-Deps, `df_core` zuerst)
+- **397 Tests + Doctests, 0 Fehler** (`cargo test --workspace`)
+- Code-Review vom 26.09.2026: 68/100 → nach den Quick Wins 80/100
+  (Architektur 15, Code-Qualität 16, Tests 15, FFI 12, Doku 9, CI 9, Hygiene 4)
 
 ### Offen (P3)
 - HDR over Wayland (color-management-v1) - Grundlagen implementiert
@@ -36,9 +44,13 @@ Displaymanager ist ein Rust-basiertes Multi-Plattform-Tool zur Anzeigesteuerung 
 
 
 
-## Letzte Änderungen (20. Juli 2026)
-- HDR-over-Wayland Error-Pfad verbessert (klare UnsupportedFeature-Fehlermeldung in displmgr_wlr.rs)
-- Verifiziert, dass zwlr_color_manager_v1 in wayland-protocols-wlr 0.3.12 nicht verfügbar ist
-- Multi-GPU DRM Support vollständig integriert (DrmTopology, resource_map, Editor-Methoden)
-- Verbesserte Windows FFI Fehlerbehandlung für null handles
-- Verbesserte Linux DDC Retry-Logik mit Checksum-Validierung
+## Letzte Änderungen (September 2026)
+- Code-Review 68/100 mit nachvollziehbaren Belegen (Tool-Ausführung, nicht nur Code-Lesen)
+- 5 Quick Wins umgesetzt: Doctest-Fix, Deprecated-Migration (375 Zeilen/42 Dateien),
+  rustfmt, CI-Reparatur, Publish-Versionen
+- Nebenbei: 7 ungenutzte Imports, 1 ungenutztes must_use, 1 redundantes unsafe,
+  11 Identitäts-`.into()` entfernt
+- Boilerplate-Test-Bereinigung: 92 redundante Tests entfernt (480→388)
+- Entfernt: triviale Default-Tests, duplizierte VCP/PowerState/InputSource-Tests
+- Konsolidiert: einzelne Wert-Tests zu Sammeltests
+- Alle Tests bestehen weiterhin

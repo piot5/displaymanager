@@ -1,11 +1,11 @@
 use wayland_client::{Connection, EventQueue, Dispatch};
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use super::displmgr_wlr_sys::*;
 
 /// Synchronously performs a "Roundtrip" to the Wayland server to collect all monitor data.
-pub fn fetch_wlr_topology() -> DisplayResult<WlrGlobalState> {
+pub fn fetch_wlr_topology() -> Result<WlrGlobalState, DisplayManagerError> {
     let conn = Connection::connect_to_env()
-        .map_err(|e| DisplayError::ConnectionFailed)?;
+        .map_err(|e| DisplayManagerError::ConnectionFailed)?;
     
     let display = conn.display();
     let mut event_queue = conn.new_event_queue();
@@ -22,7 +22,7 @@ pub fn fetch_wlr_topology() -> DisplayResult<WlrGlobalState> {
 
     // Blocks until the compositor sends the 'finished' event for the current configuration.
     event_queue.roundtrip(&mut state)
-        .map_err(|e| DisplayError::BackendError(e.to_string()))?;
+        .map_err(|e| DisplayManagerError::BackendError(e.to_string()))?;
 
     Ok(state)
 }

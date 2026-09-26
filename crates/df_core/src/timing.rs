@@ -220,13 +220,8 @@ pub fn calculate_cvt(
     }
 }
 
-
 /// Convenience helpers for common presets.
-pub fn cvt_rb(
-    width: u32,
-    height: u32,
-    refresh_rate_mhz: u32,
-) -> TimingParameters {
+pub fn cvt_rb(width: u32, height: u32, refresh_rate_mhz: u32) -> TimingParameters {
     calculate_cvt(
         width,
         height,
@@ -239,11 +234,7 @@ pub fn cvt_rb(
     )
 }
 
-pub fn gtf(
-    width: u32,
-    height: u32,
-    refresh_rate_mhz: u32,
-) -> TimingParameters {
+pub fn gtf(width: u32, height: u32, refresh_rate_mhz: u32) -> TimingParameters {
     calculate_cvt(
         width,
         height,

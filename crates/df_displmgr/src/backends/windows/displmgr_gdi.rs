@@ -4,12 +4,13 @@ use std::collections::HashMap;
 use std::fmt;
 use windows::core::PCWSTR;
 use windows::Win32::Graphics::Gdi::{
-    ChangeDisplaySettingsExW, CDS_NORESET, CDS_SET_PRIMARY, CDS_TEST, CDS_TYPE, CDS_UPDATEREGISTRY, DEVMODEW,
-    DEVMODE_DISPLAY_ORIENTATION, DISP_CHANGE_SUCCESSFUL, DISP_CHANGE_BADMODE, DMDO_180, DMDO_270, DMDO_90, DMDO_DEFAULT,
-    DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH, DM_POSITION,
+    ChangeDisplaySettingsExW, CDS_NORESET, CDS_SET_PRIMARY, CDS_TEST, CDS_TYPE, CDS_UPDATEREGISTRY,
+    DEVMODEW, DEVMODE_DISPLAY_ORIENTATION, DISP_CHANGE_BADMODE, DISP_CHANGE_SUCCESSFUL, DMDO_180,
+    DMDO_270, DMDO_90, DMDO_DEFAULT, DM_DISPLAYORIENTATION, DM_PELSHEIGHT, DM_PELSWIDTH,
+    DM_POSITION,
 };
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{DisplayId, DisplayRotation, OutputState};
 
@@ -103,7 +104,7 @@ impl fmt::Debug for GdiTopology {
 
 #[async_trait]
 impl UniversalTopology for GdiTopology {
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         let (saved_modes, outputs_vec) = query_gdi_outputs()?;
         let mut outputs = HashMap::new();
         for state in outputs_vec {
@@ -121,7 +122,10 @@ impl UniversalTopology for GdiTopology {
         self.outputs.values().cloned().collect()
     }
 
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         if !self.outputs.contains_key(&id.0) {
             return Err(DisplayManagerError::MonitorNotFound(id.to_string()));
         }
@@ -133,10 +137,10 @@ impl UniversalTopology for GdiTopology {
         self
     }
 
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         // Validate all staged DEVMODE configurations using CDS_TEST before commit.
         // This prevents invalid display configurations from being applied.
-        
+
         // Phase 1: Validate primary display configuration if target_primary_id is set
         if let Some(primary_id) = &self.target_primary_id {
             if let Some(&saved) = self.saved_modes.get(primary_id) {
@@ -155,7 +159,7 @@ impl UniversalTopology for GdiTopology {
                 }
             }
         }
-        
+
         // Phase 2: Validate all secondary display configurations
         for (id, state) in &self.outputs {
             if Some(id) == self.target_primary_id.as_ref() {
@@ -181,11 +185,11 @@ impl UniversalTopology for GdiTopology {
                 self.validate_mode(id, &devmode)?;
             }
         }
-        
+
         Ok(())
     }
 
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         // ── Phase 1: Primary monitor ─────────────────────────────────────────
         if let Some(primary_id) = self.target_primary_id.clone() {
             if let (Some(state), Some(&saved)) = (
@@ -221,7 +225,9 @@ impl UniversalTopology for GdiTopology {
                     )
                 } != DISP_CHANGE_SUCCESSFUL
                 {
-                    return Err(DisplayError::BackendError("Primary staging failed".into()));
+                    return Err(DisplayManagerError::BackendError(
+                        "Primary staging failed".into(),
+                    ));
                 }
             }
         }
@@ -269,7 +275,7 @@ impl UniversalTopology for GdiTopology {
                 )
             } != DISP_CHANGE_SUCCESSFUL
             {
-                return Err(DisplayError::BackendError(
+                return Err(DisplayManagerError::BackendError(
                     "Secondary staging failed".into(),
                 ));
             }
@@ -279,7 +285,9 @@ impl UniversalTopology for GdiTopology {
         if unsafe { ChangeDisplaySettingsExW(PCWSTR::null(), None, None, CDS_TYPE(0), None) }
             != DISP_CHANGE_SUCCESSFUL
         {
-            return Err(DisplayError::BackendError("Global flush failed".into()));
+            return Err(DisplayManagerError::BackendError(
+                "Global flush failed".into(),
+            ));
         }
 
         self.target_primary_id = None;
@@ -298,7 +306,11 @@ impl GdiTopology {
     ///
     /// This method uses unsafe FFI calls to the Windows API. The caller must
     /// ensure the DEVMODEW structure is properly initialized.
-    pub fn validate_mode(&self, device_name: &str, devmode: &DEVMODEW) -> DisplayResult<()> {
+    pub fn validate_mode(
+        &self,
+        device_name: &str,
+        devmode: &DEVMODEW,
+    ) -> Result<(), DisplayManagerError> {
         let wide_name = to_wide(device_name);
         let result = unsafe {
             ChangeDisplaySettingsExW(
@@ -312,8 +324,11 @@ impl GdiTopology {
 
         match result {
             DISP_CHANGE_SUCCESSFUL => Ok(()),
-            DISP_CHANGE_BADMODE => Err(DisplayError::ConfigurationRejected),
-            _ => Err(DisplayError::BackendError(format!("CDS_TEST validation failed: {:?}", result))),
+            DISP_CHANGE_BADMODE => Err(DisplayManagerError::ConfigurationRejected),
+            _ => Err(DisplayManagerError::BackendError(format!(
+                "CDS_TEST validation failed: {:?}",
+                result
+            ))),
         }
     }
 

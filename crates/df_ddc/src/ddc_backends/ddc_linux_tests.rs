@@ -3,8 +3,8 @@
 //! These tests verify the improved error handling for ioctl failures,
 //! including retry exhaustions with detailed context.
 
-use crate::error::DdcError;
 use crate::ddc_backends::ddc_linux::LinuxBackend;
+use crate::error::DisplayManagerError;
 
 #[cfg(test)]
 mod linux_backend_tests {
@@ -21,10 +21,10 @@ mod linux_backend_tests {
 
         if let Err(e) = result {
             match e {
-                DdcError::BackendNotAvailable { details } => {
+                DisplayManagerError::BackendNotAvailable { details } => {
                     assert!(!details.is_empty());
                 }
-                DdcError::AccessDenied => {
+                DisplayManagerError::AccessDenied => {
                     // Also acceptable if permission denied
                 }
                 _ => panic!("Unexpected error type: {:?}", e),

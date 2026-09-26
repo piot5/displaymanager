@@ -11,7 +11,7 @@ fn minimal_edid() -> Vec<u8> {
         0x01, 0x02, 0x03, 0x04, // serial number (binary)
         0x01, // week of manufacture
         0x1A, // year of manufacture (1990 + 0x1A = 2016)
-        // The rest is filled with zeros for simplicity.
+              // The rest is filled with zeros for simplicity.
     ];
     // Pad to 127 bytes (last byte is checksum)
     data.resize(127, 0);

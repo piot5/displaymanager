@@ -200,7 +200,9 @@ fn extract_quoted(content: &str) -> &str {
 ///
 /// Returns [`CapabilitiesParseError::Empty`] if the input is empty.
 /// Returns [`CapabilitiesParseError::MissingToken`] if `protver` is missing.
-pub fn parse_capabilities_string(input: &str) -> Result<CapabilitiesString, CapabilitiesParseError> {
+pub fn parse_capabilities_string(
+    input: &str,
+) -> Result<CapabilitiesString, CapabilitiesParseError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return Err(CapabilitiesParseError::Empty);
@@ -287,7 +289,8 @@ mod tests {
 
     #[test]
     fn test_parse_full_capabilities() {
-        let input = r#"protver(2.1) mccs_ver(2.1) model("DELL S2721QS") vcp(10 12 60(03 0b) D6 AC 16)"#;
+        let input =
+            r#"protver(2.1) mccs_ver(2.1) model("DELL S2721QS") vcp(10 12 60(03 0b) D6 AC 16)"#;
         let caps = parse_capabilities_string(input).unwrap();
 
         assert_eq!(caps.protocol_version, "2.1");

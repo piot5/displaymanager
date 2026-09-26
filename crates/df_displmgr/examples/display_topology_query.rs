@@ -2,7 +2,7 @@ use df_displmgr::traits::UniversalTopology;
 use df_displmgr::NativeTopology;
 
 #[tokio::main]
-async fn main() -> df_displmgr::DisplayResult<()> {
+async fn main() -> Result<(), df_displmgr::DisplayManagerError> {
     println!("Querying current display topology...");
 
     // Acquire the platform-specific topology handle

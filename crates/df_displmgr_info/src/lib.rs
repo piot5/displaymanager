@@ -77,10 +77,10 @@ pub fn collect_monitor_data() -> Result<Vec<MonitorDetails>, crate::error::EdidE
 /// Returns an error if the file cannot be read or if the EDID data is invalid.
 pub fn parse_edid_file(path: &str) -> Result<EdidData, crate::error::EdidError> {
     use std::fs;
-    
+
     // Read EDID binary data from file (uses transparent From impl)
     let raw = fs::read(path).map_err(crate::error::EdidError::Io)?;
-    
+
     // Use EdidParser to parse the raw data
     edid_parser::EdidParser::parse(&raw)
 }

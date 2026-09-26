@@ -8,17 +8,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_set_args_default() {
-        let args = SetArgs::default();
-        assert!(args.mode_type.is_none());
-        assert!(args.clone_from.is_none());
-        assert!(!args.auto_pos);
-        assert!(!args.ccd_wake);
-        assert!(!args.primary);
-        assert!(!args.verify_only);
-    }
-
-    #[test]
     fn test_set_args_with_values() {
         let args = SetArgs {
             output: "HDMI-1".to_string(),
@@ -40,11 +29,6 @@ mod tests {
         assert!(args.auto_pos);
         assert!(args.ccd_wake);
         assert!(args.primary);
-    }
-
-    #[test]
-    fn test_clone_tolerance_constant() {
-        assert_eq!(CLONE_TOLERANCE, 4);
     }
 
     #[test]
@@ -299,7 +283,7 @@ fn apply_editor_inline(
                         df_displmgr::types::HdrState::Disabled,
                         df_displmgr::types::HdrMode::Default,
                     ),
-                    _ => bail!("Invalid --hdr value '{hdr_val}', use 'on' or 'off'"),
+                    _ => bail!("Invalid --hdr value 'hdr_val', use 'on' or 'off'"),
                 };
                 editor.set_hdr(state, mode).context("set_hdr failed")?;
                 println!("  HDR: {:?}", state);

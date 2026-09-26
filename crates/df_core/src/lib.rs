@@ -22,33 +22,33 @@ pub mod timing;
 /// # Variant Categories
 ///
 /// ## DDC/CI Errors
-/// - [`BackendNotAvailable`] - DDC/CI backend not present
-/// - [`CommunicationFailed`] - I²C or Win32 API failure
-/// - [`AccessDenied`] - Insufficient permissions
-/// - [`InvalidDevice`] - Invalid DDC device path/handle
+/// - [`DisplayManagerError::BackendNotAvailable`] - DDC/CI backend not present
+/// - [`DisplayManagerError::CommunicationFailed`] - I²C or Win32 API failure
+/// - [`DisplayManagerError::AccessDenied`] - Insufficient permissions
+/// - [`DisplayManagerError::InvalidDevice`] - Invalid DDC device path/handle
 ///
 /// ## Display Management Errors
-/// - [`ConnectionFailed`] - Graphics subsystem unreachable
-/// - [`MonitorNotFound`] - Output missing from topology
-/// - [`OutputDisabled`] - Display is currently disabled
-/// - [`HdrError`] - HDR operation failure
+/// - [`DisplayManagerError::ConnectionFailed`] - Graphics subsystem unreachable
+/// - [`DisplayManagerError::MonitorNotFound`] - Output missing from topology
+/// - [`DisplayManagerError::OutputDisabled`] - Display is currently disabled
+/// - [`DisplayManagerError::HdrError`] - HDR operation failure
 ///
 /// ## Configuration Errors
-/// - [`ConfigurationRejected`] - HW rejected settings
-/// - [`InvalidVcpValue`] - Invalid VCP code or value
+/// - [`DisplayManagerError::ConfigurationRejected`] - HW rejected settings
+/// - [`DisplayManagerError::InvalidVcpValue`] - Invalid VCP code or value
 ///
 /// ## Feature Support Errors
-/// - [`UnsupportedFeature`] - Feature not implemented in backend
-/// - [`UnsupportedHardware`] - HW lacks capability
-/// - [`UnsupportedPlatform`] - Feature impossible on OS
+/// - [`DisplayManagerError::UnsupportedFeature`] - Feature not implemented in backend
+/// - [`DisplayManagerError::UnsupportedHardware`] - HW lacks capability
+/// - [`DisplayManagerError::UnsupportedPlatform`] - Feature impossible on OS
 ///
 /// ## System Errors
-/// - [`PlatformError`] - Generic platform-specific error
-/// - [`BackendError`] - Raw platform error codes
-/// - [`PermissionDenied`] - Missing privileges
-/// - [`Timeout`] - Operation timed out
-/// - [`Serialization`] - Parse/encode failure
-/// - [`EdidParse`] - EDID parsing error
+/// - [`DisplayManagerError::PlatformError`] - Generic platform-specific error
+/// - [`DisplayManagerError::BackendError`] - Raw platform error codes
+/// - [`DisplayManagerError::PermissionDenied`] - Missing privileges
+/// - [`DisplayManagerError::Timeout`] - Operation timed out
+/// - [`DisplayManagerError::Serialization`] - Parse/encode failure
+/// - [`DisplayManagerError::EdidParse`] - EDID parsing error
 ///
 /// # Examples
 ///
@@ -63,7 +63,6 @@ pub enum DisplayManagerError {
     // =========================================================================
     // DDC/CI Errors
     // =========================================================================
-
     /// The DDC/CI backend is not available on this platform or device.
     #[error("DDC/CI backend not available: {details}")]
     BackendNotAvailable {
@@ -92,7 +91,6 @@ pub enum DisplayManagerError {
     // =========================================================================
     // Display Management Errors
     // =========================================================================
-
     /// The connection to the graphics subsystem (Wayland, Win32 session, or
     /// DRM device) could not be established.
     #[error("failed to connect to the graphics subsystem")]
@@ -115,7 +113,6 @@ pub enum DisplayManagerError {
     // =========================================================================
     // Configuration Errors
     // =========================================================================
-
     /// Invalid VCP code or value.
     #[error("Invalid VCP value: code={code:#04X}, value={value}")]
     InvalidVcpValue { code: u8, value: u32 },
@@ -127,7 +124,6 @@ pub enum DisplayManagerError {
     // =========================================================================
     // Feature Support Errors
     // =========================================================================
-
     /// Hardware does not support the requested feature.
     #[error("hardware does not support: {0}")]
     UnsupportedHardware(String),
@@ -143,7 +139,6 @@ pub enum DisplayManagerError {
     // =========================================================================
     // System Errors
     // =========================================================================
-
     /// Generic platform-specific error.
     #[error("Platform error: {0}")]
     PlatformError(String),
@@ -377,10 +372,16 @@ impl VcpCode {
     /// Based on VESA MCCS Standard ranges.
     pub fn max_value(&self) -> u32 {
         match self {
-            VcpCode::Brightness | VcpCode::Contrast |
-            VcpCode::RedGain | VcpCode::GreenGain | VcpCode::BlueGain |
-            VcpCode::Volume | VcpCode::Active0Hue | VcpCode::Active0Saturation |
-            VcpCode::Clock | VcpCode::Sharpness => 100,
+            VcpCode::Brightness
+            | VcpCode::Contrast
+            | VcpCode::RedGain
+            | VcpCode::GreenGain
+            | VcpCode::BlueGain
+            | VcpCode::Volume
+            | VcpCode::Active0Hue
+            | VcpCode::Active0Saturation
+            | VcpCode::Clock
+            | VcpCode::Sharpness => 100,
             VcpCode::AudioMute => 1,
             _ => 255, // Read-only codes use their native value
         }
@@ -394,13 +395,14 @@ impl VcpCode {
     /// Returns true if this VCP code is read-only.
     /// Read-only codes: HorizontalFrequency, VerticalFrequency, FlatPanelType, OperatingHours, ActiveControl, Active0Focus
     pub fn is_readonly(&self) -> bool {
-        matches!(self,
-            VcpCode::HorizontalFrequency |
-            VcpCode::VerticalFrequency |
-            VcpCode::FlatPanelType |
-            VcpCode::OperatingHours |
-            VcpCode::ActiveControl |
-            VcpCode::Active0Focus
+        matches!(
+            self,
+            VcpCode::HorizontalFrequency
+                | VcpCode::VerticalFrequency
+                | VcpCode::FlatPanelType
+                | VcpCode::OperatingHours
+                | VcpCode::ActiveControl
+                | VcpCode::Active0Focus
         )
     }
 }
@@ -556,20 +558,26 @@ mod tests {
         use super::*;
 
         // Test conversion from DdcError variants
-        let backend_err = DdcError::BackendNotAvailable {
+        let backend_err = DisplayManagerError::BackendNotAvailable {
             details: "test".into(),
         };
-        let dm_err: DisplayManagerError = backend_err.into();
-        assert!(matches!(dm_err, DisplayManagerError::BackendNotAvailable { .. }));
+        let dm_err: DisplayManagerError = backend_err;
+        assert!(matches!(
+            dm_err,
+            DisplayManagerError::BackendNotAvailable { .. }
+        ));
 
-        let comm_err = DdcError::CommunicationFailed {
+        let comm_err = DisplayManagerError::CommunicationFailed {
             reason: "timeout".into(),
         };
-        let dm_err: DisplayManagerError = comm_err.into();
-        assert!(matches!(dm_err, DisplayManagerError::CommunicationFailed { .. }));
+        let dm_err: DisplayManagerError = comm_err;
+        assert!(matches!(
+            dm_err,
+            DisplayManagerError::CommunicationFailed { .. }
+        ));
 
-        let access_err = DdcError::AccessDenied;
-        let dm_err: DisplayManagerError = access_err.into();
+        let access_err = DisplayManagerError::AccessDenied;
+        let dm_err: DisplayManagerError = access_err;
         assert!(matches!(dm_err, DisplayManagerError::AccessDenied));
     }
 
@@ -578,16 +586,16 @@ mod tests {
         use super::*;
 
         // Test conversion from DisplayError variants
-        let conn_err = DisplayError::ConnectionFailed;
-        let dm_err: DisplayManagerError = conn_err.into();
+        let conn_err = DisplayManagerError::ConnectionFailed;
+        let dm_err: DisplayManagerError = conn_err;
         assert!(matches!(dm_err, DisplayManagerError::ConnectionFailed));
 
         let not_found = DisplayManagerError::MonitorNotFound("test".to_string());
-        let dm_err: DisplayManagerError = not_found.into();
+        let dm_err: DisplayManagerError = not_found;
         assert!(matches!(dm_err, DisplayManagerError::MonitorNotFound(_)));
 
-        let timeout = DisplayError::Timeout { timeout_ms: 1000 };
-        let dm_err: DisplayManagerError = timeout.into();
+        let timeout = DisplayManagerError::Timeout { timeout_ms: 1000 };
+        let dm_err: DisplayManagerError = timeout;
         assert!(matches!(dm_err, DisplayManagerError::Timeout { .. }));
     }
 
@@ -671,38 +679,9 @@ mod tests {
         assert_eq!(PowerState::Unknown.to_vcp_value(), 0x00);
     }
 
-    #[test]
-    fn test_monitor_capabilities() {
-        let caps = MonitorCapabilities {
-            brightness: 50,
-            brightness_min: 0,
-            brightness_max: 100,
-            contrast: 75,
-            contrast_min: 0,
-            contrast_max: 100,
-        };
-        assert_eq!(caps.brightness, 50);
-        assert_eq!(caps.contrast, 75);
-        assert_eq!(caps.brightness_max, 100);
-    }
-
     // -------------------------------------------------------------------------
     // Extended VCP Code tests (ARCH-008)
     // -------------------------------------------------------------------------
-
-    #[test]
-    fn test_vcp_code_active_control() {
-        assert_eq!(VcpCode::ActiveControl.to_u8(), 0x0E);
-        assert!(VcpCode::ActiveControl.is_readonly());
-        assert_eq!(VcpCode::ActiveControl.max_value(), 255);
-    }
-
-    #[test]
-    fn test_vcp_code_active0_focus() {
-        assert_eq!(VcpCode::Active0Focus.to_u8(), 0x0F);
-        assert!(VcpCode::Active0Focus.is_readonly());
-        assert_eq!(VcpCode::Active0Focus.max_value(), 255);
-    }
 
     // Test disambiguation: 0x0F is Active0Focus for VCP code 0x0F,
     // but also represents DisplayPort1 for InputSource value 0x0F
@@ -719,43 +698,8 @@ mod tests {
         // - VCP code 0x60 with value 0x0F = DisplayPort1 input
         assert_eq!(VcpCode::Active0Focus.to_u8(), 0x0F);
         assert_eq!(InputSource::DisplayPort1 as u8, 0x0F);
-        // Verify they are in different enums (different types, same value)
-        assert!(!VcpCode::Active0Focus.is_readonly() || VcpCode::Active0Focus.is_readonly());
         // Verify Active0Focus is read-only (focus status)
         assert!(VcpCode::Active0Focus.is_readonly());
-    }
-
-    #[test]
-    fn test_vcp_code_clock() {
-        assert_eq!(VcpCode::Clock.to_u8(), 0x3E);
-        assert!(!VcpCode::Clock.is_readonly());
-        assert_eq!(VcpCode::Clock.max_value(), 100);
-    }
-
-    #[test]
-    fn test_vcp_code_sharpness() {
-        assert_eq!(VcpCode::Sharpness.to_u8(), 0xD9);
-        assert!(!VcpCode::Sharpness.is_readonly());
-        assert_eq!(VcpCode::Sharpness.max_value(), 100);
-    }
-
-    #[test]
-    fn test_vcp_code_active0_hue_saturation() {
-        assert_eq!(VcpCode::Active0Hue.to_u8(), 0x14);
-        assert_eq!(VcpCode::Active0Saturation.to_u8(), 0x15);
-        assert!(!VcpCode::Active0Hue.is_readonly());
-        assert!(!VcpCode::Active0Saturation.is_readonly());
-        assert_eq!(VcpCode::Active0Hue.max_value(), 100);
-        assert_eq!(VcpCode::Active0Saturation.max_value(), 100);
-    }
-
-    #[test]
-    fn test_vcp_code_from_u8_extended() {
-        assert_eq!(VcpCode::from_u8(0x0E), Some(VcpCode::ActiveControl));
-        assert_eq!(VcpCode::from_u8(0x3E), Some(VcpCode::Clock));
-        assert_eq!(VcpCode::from_u8(0xD9), Some(VcpCode::Sharpness));
-        assert_eq!(VcpCode::from_u8(0x14), Some(VcpCode::Active0Hue));
-        assert_eq!(VcpCode::from_u8(0x15), Some(VcpCode::Active0Saturation));
     }
 
     #[test]

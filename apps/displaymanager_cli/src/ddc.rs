@@ -39,14 +39,16 @@ pub fn apply_ddc(
         })?;
 
     // Check if any DDC values are being set
-    let has_changes = brightness.is_some() 
-        || contrast.is_some() 
-        || volume.is_some() 
-        || input.is_some() 
+    let has_changes = brightness.is_some()
+        || contrast.is_some()
+        || volume.is_some()
+        || input.is_some()
         || power.is_some();
 
     if !has_changes {
-        println!("  ⚠ No DDC values to set (brightness, contrast, volume, input, or power required)");
+        println!(
+            "  ⚠ No DDC values to set (brightness, contrast, volume, input, or power required)"
+        );
         return Ok(());
     }
 
@@ -105,9 +107,7 @@ pub fn apply_ddc(
         if dry_run {
             println!("    → input: {}", source);
         } else {
-            device
-                .set_input(src)
-                .context("DDC input set failed")?;
+            device.set_input(src).context("DDC input set failed")?;
             println!("  DDC: input set to {} on {}", source, device.info);
         }
     }
@@ -119,16 +119,14 @@ pub fn apply_ddc(
             "off" | "0" => PowerState::Off,
             _ => {
                 return Err(anyhow!(
-                    "Unrecognized power state '{state}', use 'on' or 'off'"
+                    "Unrecognized power state 'state', use 'on' or 'off'"
                 ))
             }
         };
         if dry_run {
             println!("    → power: {}", state);
         } else {
-            device
-                .set_power(ps)
-                .context("DDC power set failed")?;
+            device.set_power(ps).context("DDC power set failed")?;
             println!("  DDC: power set to {} on {}", state, device.info);
         }
     }
@@ -194,11 +192,26 @@ mod tests {
 
     #[test]
     fn test_parse_input_source_named_dp() {
-        assert_eq!(parse_input_source("dp1").unwrap(), InputSource::DisplayPort1);
-        assert_eq!(parse_input_source("DISPLAYPORT1").unwrap(), InputSource::DisplayPort1);
-        assert_eq!(parse_input_source("displayport1.0").unwrap(), InputSource::DisplayPort1);
-        assert_eq!(parse_input_source("dp2").unwrap(), InputSource::DisplayPort2);
-        assert_eq!(parse_input_source("DISPLAYPORT2").unwrap(), InputSource::DisplayPort2);
+        assert_eq!(
+            parse_input_source("dp1").unwrap(),
+            InputSource::DisplayPort1
+        );
+        assert_eq!(
+            parse_input_source("DISPLAYPORT1").unwrap(),
+            InputSource::DisplayPort1
+        );
+        assert_eq!(
+            parse_input_source("displayport1.0").unwrap(),
+            InputSource::DisplayPort1
+        );
+        assert_eq!(
+            parse_input_source("dp2").unwrap(),
+            InputSource::DisplayPort2
+        );
+        assert_eq!(
+            parse_input_source("DISPLAYPORT2").unwrap(),
+            InputSource::DisplayPort2
+        );
     }
 
     #[test]

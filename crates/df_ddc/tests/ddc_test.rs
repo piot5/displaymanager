@@ -1,7 +1,7 @@
 use df_ddc::ddc_backends::ddc_debug::DebugBackend;
 use df_ddc::ddc_trait::{DdcControl, DisplayDevice};
 use df_ddc::ddc_types::{InputSource, PowerState, VcpCode};
-use df_ddc::error::DdcError;
+use df_ddc::error::DisplayManagerError;
 use df_ddc::list_monitors;
 use std::sync::Arc;
 use std::thread;
@@ -31,34 +31,36 @@ fn test_exhaustive_ddc_success_path() {
 /// 2. Error-mapping test (simulates hardware failures)
 struct FailBackend;
 impl DdcControl for FailBackend {
-    fn get_vcp_feature(&self, _: u8) -> Result<(u32, u32), DdcError> {
-        Err(DdcError::CommunicationFailed {
+    fn get_vcp_feature(&self, _: u8) -> Result<(u32, u32), DisplayManagerError> {
+        Err(DisplayManagerError::CommunicationFailed {
             reason: "Timeout".into(),
         })
     }
-    fn set_vcp_feature(&self, _: u8, _: u32) -> Result<(), DdcError> {
-        Err(DdcError::UnsupportedFeature("simulated hardware failure".into()))
+    fn set_vcp_feature(&self, _: u8, _: u32) -> Result<(), DisplayManagerError> {
+        Err(DisplayManagerError::UnsupportedFeature(
+            "simulated hardware failure".into(),
+        ))
     }
 }
 
 #[test]
 fn test_library_error_propagation() {
-    let fail_device = DisplayDevice::new(
-        "Broken Monitor".to_string(),
-        Box::new(FailBackend),
-    );
+    let fail_device = DisplayDevice::new("Broken Monitor".to_string(), Box::new(FailBackend));
 
     // Check that get_capabilities correctly wraps backend errors
     let caps_result = fail_device.get_capabilities();
     match caps_result {
-        Err(DdcError::CommunicationFailed { .. }) => {
+        Err(DisplayManagerError::CommunicationFailed { .. }) => {
             println!("LOG: Error mapping (communication) is correct.")
         }
         _ => panic!("Expected CommunicationError was not raised"),
     }
     // Check UnsupportedFeature for set operations
     let set_result = fail_device.set_power(PowerState::On);
-    assert!(matches!(set_result, Err(DdcError::UnsupportedFeature(_))));
+    assert!(matches!(
+        set_result,
+        Err(DisplayManagerError::UnsupportedFeature(_))
+    ));
 }
 
 /// 3. Integrationstest: Monitor Enumeration

@@ -9,7 +9,7 @@ use windows::Win32::UI::HiDpi::{
     SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
 
-use crate::error::{DisplayError, DisplayManagerError, DisplayResult};
+use crate::error::DisplayManagerError;
 use crate::traits::{OutputEditable, UniversalTopology};
 use crate::types::{DisplayId, Extent2D, HdrState, OutputState, Point2D};
 
@@ -163,7 +163,7 @@ pub async fn activate_display(
     monitor_name: &str,
     resolution: Option<Extent2D>,
     position: Option<Point2D>,
-) -> DisplayResult<ActivationResult> {
+) -> Result<ActivationResult, DisplayManagerError> {
     // Step 1: Search for the display target
     let target = find_display_target(monitor_name)
         .ok_or_else(|| DisplayManagerError::MonitorNotFound(monitor_name.to_string()))?;
@@ -282,7 +282,7 @@ fn apply_gdi_state_to_ccd(gdi: &GdiTopology, fresh_ccd: &CcdTopology) {
 #[async_trait]
 impl UniversalTopology for WinDisplayManager {
     /// Synchronously initializes the Windows graphics topology layer by polling available APIs.
-    fn acquire() -> DisplayResult<Self> {
+    fn acquire() -> Result<Self, DisplayManagerError> {
         // Force raw physical pixel grids across all connected FFI communication boundaries
         ensure_dpi_aware();
 
@@ -323,7 +323,10 @@ impl UniversalTopology for WinDisplayManager {
     }
 
     /// Generates a mutable, chainable graphics parameter staging editor for a targeted display ID.
-    fn edit_output(&mut self, id: &DisplayId) -> DisplayResult<Box<dyn OutputEditable + '_>> {
+    fn edit_output(
+        &mut self,
+        id: &DisplayId,
+    ) -> Result<Box<dyn OutputEditable + '_>, DisplayManagerError> {
         if self.use_ccd {
             if let Some(ref mut ccd_backend) = self.ccd {
                 return ccd_backend.edit_output(id);
@@ -343,7 +346,7 @@ impl UniversalTopology for WinDisplayManager {
     }
 
     /// Tests the validity of staged display alterations without altering active hardware states.
-    async fn validate(&self) -> DisplayResult<()> {
+    async fn validate(&self) -> Result<(), DisplayManagerError> {
         if self.use_ccd {
             if let Some(ref ccd_backend) = self.ccd {
                 // Delegate validation cycles directly to the modern kernel driver pipeline
@@ -356,28 +359,32 @@ impl UniversalTopology for WinDisplayManager {
     }
 
     /// Flushes all staged layout configurations down to the native Windows kernel layer.
-    async fn commit(&mut self) -> DisplayResult<()> {
+    async fn commit(&mut self) -> Result<(), DisplayManagerError> {
         if self.use_ccd {
             let mut ccd_backend = match self.ccd.take() {
                 Some(backend) => backend,
                 None => {
-                    return Err(DisplayError::BackendError(
+                    return Err(DisplayManagerError::BackendError(
                         "CCD backend uninitialized".into(),
                     ))
                 }
             };
 
             // CCD requires synchronous kernel interactions isolated onto a dedicated blocking thread
-            let updated_ccd = task::spawn_blocking(move || -> DisplayResult<CcdTopology> {
-                futures::executor::block_on(async {
-                    <CcdTopology as UniversalTopology>::commit(&mut ccd_backend).await
-                })?;
-                Ok(ccd_backend)
-            })
-            .await
-            .map_err(|e| {
-                DisplayError::BackendError(format!("CCD blocking task execution panic: {}", e))
-            })??;
+            let updated_ccd =
+                task::spawn_blocking(move || -> Result<CcdTopology, DisplayManagerError> {
+                    futures::executor::block_on(async {
+                        <CcdTopology as UniversalTopology>::commit(&mut ccd_backend).await
+                    })?;
+                    Ok(ccd_backend)
+                })
+                .await
+                .map_err(|e| {
+                    DisplayManagerError::BackendError(format!(
+                        "CCD blocking task execution panic: {}",
+                        e
+                    ))
+                })??;
 
             self.ccd = Some(updated_ccd);
 
@@ -391,16 +398,20 @@ impl UniversalTopology for WinDisplayManager {
             let mut gdi_backend = self.gdi.clone();
 
             // Execute legacy GDI subsystem resets safely within isolated blocking workers
-            let updated_gdi = task::spawn_blocking(move || -> DisplayResult<GdiTopology> {
-                futures::executor::block_on(async {
-                    <GdiTopology as UniversalTopology>::commit(&mut gdi_backend).await
-                })?;
-                Ok(gdi_backend)
-            })
-            .await
-            .map_err(|e| {
-                DisplayError::BackendError(format!("GDI blocking task execution panic: {}", e))
-            })??;
+            let updated_gdi =
+                task::spawn_blocking(move || -> Result<GdiTopology, DisplayManagerError> {
+                    futures::executor::block_on(async {
+                        <GdiTopology as UniversalTopology>::commit(&mut gdi_backend).await
+                    })?;
+                    Ok(gdi_backend)
+                })
+                .await
+                .map_err(|e| {
+                    DisplayManagerError::BackendError(format!(
+                        "GDI blocking task execution panic: {}",
+                        e
+                    ))
+                })??;
 
             self.gdi = updated_gdi;
 
@@ -422,7 +433,10 @@ impl UniversalTopology for WinDisplayManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{AdapterId, ConnectorId, DisplayIdentity, DisplayId, DisplayRotation, Extent2D, HdrMode, HdrState, OutputState, Point2D, Rect};
+    use crate::types::{
+        AdapterId, ConnectorId, DisplayId, DisplayIdentity, DisplayRotation, Extent2D, HdrMode,
+        HdrState, OutputState, Point2D, Rect,
+    };
     use std::collections::HashMap;
 
     #[test]
@@ -544,7 +558,10 @@ mod tests {
                 },
                 geometry: Rect {
                     origin: Point2D { x: 0, y: 0 },
-                    size: Extent2D { width: 1920, height: 1080 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
                 },
                 scale: 1.0,
                 rotation: DisplayRotation::Rotate0,
@@ -569,7 +586,10 @@ mod tests {
                 },
                 geometry: Rect {
                     origin: Point2D { x: 1920, y: 0 },
-                    size: Extent2D { width: 1920, height: 1080 },
+                    size: Extent2D {
+                        width: 1920,
+                        height: 1080,
+                    },
                 },
                 scale: 1.0,
                 rotation: DisplayRotation::Rotate0,

@@ -15,7 +15,7 @@ mod windows_ffi_tests {
         // This test verifies that the callback handles null handles gracefully
         // by not panicking and logging appropriate warnings
         let monitors = crate::windows_ffi::enumerate_windows_monitors();
-        
+
         // The enumeration should complete successfully even if some monitors
         // have null handles (disconnected during enumeration)
         // On systems without physical monitors, this returns an empty vec
@@ -27,9 +27,6 @@ mod windows_ffi_tests {
     /// Tests that DisplayDevice can be constructed with various info strings
     #[test]
     fn test_display_device_info_variations() {
-        use crate::ddc_trait::DdcControl;
-        use crate::error::DdcError;
-        use crate::ddc_types::MonitorCapabilities;
         use crate::test_utils::MockBackend;
 
         // Test empty info string (edge case)
