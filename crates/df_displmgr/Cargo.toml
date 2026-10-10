@@ -1,6 +1,6 @@
 [package]
 name = "df_displmgr"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.75"
 authors = ["piot5"]
@@ -55,7 +55,7 @@ zbus = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-df_displmgr_info = { path = "../df_displmgr_info", version = "0.1.1" }
+df_displmgr_info = { path = "../df_displmgr_info", version = "0.1.2" }
 tokio = { workspace = true, features = ["test-util", "macros"] }
 
 [[bench]]

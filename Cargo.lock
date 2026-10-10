@@ -512,7 +512,7 @@ dependencies = [
 
 [[package]]
 name = "df_ddc"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "criterion",
@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "df_displmgr"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -552,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "df_displmgr_info"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "criterion",
  "df_core",

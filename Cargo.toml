@@ -38,6 +38,6 @@ wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 log = "0.4"
 zbus = { version = "4", features = ["tokio"] }
 df_core = { path = "crates/df_core", version = "0.1.1" }
-df_ddc = { path = "crates/df_ddc", version = "0.1.1" }
-df_displmgr = { path = "crates/df_displmgr", version = "0.1.1" }
-df_displmgr_info = { path = "crates/df_displmgr_info", version = "0.1.1" }
+df_ddc = { path = "crates/df_ddc", version = "0.1.2" }
+df_displmgr = { path = "crates/df_displmgr", version = "0.1.2" }
+df_displmgr_info = { path = "crates/df_displmgr_info", version = "0.1.2" }
